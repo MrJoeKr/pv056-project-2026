@@ -1,0 +1,16 @@
+data/
+results/models/
+__pycache__/
+*.pyc
+.env
+*.pt
+*.pth
+wandb/
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
+.venv/
+.python-version
+test_imports.py
