@@ -32,7 +32,7 @@ class Config:
     ])
     unknown_class: str = "Tomato_Bacterial_spot"
     img_size: int = 224
-    num_workers: int = 2
+    num_workers: int = 4
 
     # Model
     embedding_dim: int = 512
