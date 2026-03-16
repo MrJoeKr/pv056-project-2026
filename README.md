@@ -26,7 +26,7 @@ python -m venv .venv
 source .venv/Scripts/activate        # Windows
 source .venv/bin/activate            # Linux/macOS
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
-pip install pytorch-metric-learning scikit-learn optuna matplotlib seaborn umap-learn grad-cam tqdm pandas
+pip install -r requirements.txt
 ```
 
 ## Usage
