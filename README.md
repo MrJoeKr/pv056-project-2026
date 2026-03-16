@@ -4,7 +4,7 @@ PV056 ML & DM Semestral Project (MUNI, 2026)
 
 ## Overview
 
-Plant disease classification using contrastive/triplet learning on the PlantVillage dataset (15,466 images, 12 classes).
+Plant disease classification using contrastive/triplet learning on the PlantVillage dataset (20,638 images, 15 classes).
 
 - **Subtask a**: Supervised classification with triplet loss + 5-fold CV (target: F1macro > 0.76)
 - **Subtask b**: Unknown disease detection — exclude `Tomato_Bacterial_spot`, detect it as unknown via Mahalanobis distance thresholding
@@ -73,7 +73,7 @@ scripts/
 
 ## Dataset
 
-PlantVillage subset — 12 classes:
+PlantVillage subset — 15 classes:
 
 | Class | Count |
 |-------|-------|
@@ -89,4 +89,7 @@ PlantVillage subset — 12 classes:
 | Tomato Septoria leaf spot | 1,771 |
 | Tomato Spider mites | 1,676 |
 | Tomato Target Spot | 1,404 |
-| **Total** | **15,466** |
+| Tomato YellowLeaf Curl Virus | 3,208 |
+| Tomato mosaic virus | 373 |
+| Tomato healthy | 1,591 |
+| **Total** | **20,638** |

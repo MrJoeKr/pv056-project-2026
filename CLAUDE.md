@@ -22,9 +22,10 @@ NVIDIA CUDA GPU available locally.
 
 ## Dataset
 
-PlantVillage at `data/PlantVillage/` — 12 classes, 15,466 images. Already gitignored.
+PlantVillage at `data/PlantVillage/` — 15 classes, 20,638 images. Already gitignored.
 - Smallest class: `Potato___healthy` (152 images)
-- Largest class: `Tomato_Bacterial_spot` (2,127 images) — this is the unknown class for subtask b
+- Largest class: `Tomato__Tomato_YellowLeaf__Curl_Virus` (3,208 images)
+- Unknown class for subtask b: `Tomato_Bacterial_spot` (2,127 images)
 - Class folder names use underscores/double-underscores inconsistently — always use `config.classes` list
 
 ## Architecture
