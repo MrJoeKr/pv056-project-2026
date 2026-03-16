@@ -170,6 +170,7 @@ def main():
 
     # Save training log
     log_path = config.logs_dir / "training_log.json"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
     with open(log_path, "w") as f:
         json.dump(
             [{"fold": i, "train_loss": h["train_loss"],
