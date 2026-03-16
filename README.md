@@ -19,7 +19,7 @@ Plant disease classification using contrastive/triplet learning on the PlantVill
 
 ## Setup
 
-Requires Python 3.14+.
+Requires Python 3.12+.
 
 ```bash
 python -m venv .venv

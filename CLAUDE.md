@@ -11,7 +11,7 @@ Two subtasks:
 ## Setup
 
 ```bash
-# Python 3.12 (3.14 does NOT support PyTorch)
+# Python 3.12+
 python -m venv .venv
 source .venv/Scripts/activate        # Windows Git Bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
