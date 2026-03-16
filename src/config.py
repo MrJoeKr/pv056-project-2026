@@ -29,6 +29,9 @@ class Config:
         "Tomato_Septoria_leaf_spot",
         "Tomato_Spider_mites_Two_spotted_spider_mite",
         "Tomato__Target_Spot",
+        "Tomato__Tomato_YellowLeaf__Curl_Virus",
+        "Tomato__Tomato_mosaic_virus",
+        "Tomato_healthy",
     ])
     unknown_class: str = "Tomato_Bacterial_spot"
     img_size: int = 224
