@@ -65,7 +65,7 @@ def train_known_classes(config: Config, fold: int = 0) -> Tuple[EmbeddingNet, Pr
     )
 
     # Model, loss, optimizer
-    model = EmbeddingNet(config.embedding_dim, config.pretrained)
+    model = EmbeddingNet(config.embedding_dim, config.pretrained, config.backbone)
     loss_fn, miner_fn = get_loss_and_miner(config.mining_strategy, config.margin)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=3, factor=0.5)

@@ -96,7 +96,7 @@ def main():
     )
 
     # Model
-    model = EmbeddingNet(config.embedding_dim, config.pretrained)
+    model = EmbeddingNet(config.embedding_dim, config.pretrained, config.backbone)
     loss_fn, miner_fn = get_loss_and_miner(config.mining_strategy, config.margin)
 
     # Optimizer with differential LR
