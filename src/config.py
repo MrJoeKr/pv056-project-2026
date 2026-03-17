@@ -34,7 +34,7 @@ class Config:
         "Tomato_healthy",
     ])
     unknown_class: str = "Tomato_Bacterial_spot"
-    img_size: int = 224
+    img_size: int = 192
     num_workers: int = 4
 
     # Model
