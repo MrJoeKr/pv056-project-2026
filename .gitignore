@@ -14,3 +14,5 @@ build/
 .venv/
 .python-version
 test_imports.py
+autoresearch/run.log
+autoresearch/results.tsv

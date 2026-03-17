@@ -79,3 +79,7 @@ Scripts must be run from the project root. All output goes to `results/` (plots,
 - The `data/` directory and `results/models/` are gitignored — don't commit large files
 - Config defaults: embedding_dim=512, margin=0.2, lr=1e-4, batch_size=64, 30 epochs, patience=7
 - Cross-validation: 5 stratified folds, report mean +/- std F1macro
+
+## Autoresearch Mode
+
+For autonomous speed optimization experiments, read `autoresearch/program.md` for full instructions.
