@@ -38,7 +38,7 @@ class Config:
     num_workers: int = 4
 
     # Model
-    embedding_dim: int = 256
+    embedding_dim: int = 128
     backbone: str = "resnet18"
     pretrained: bool = True
 
