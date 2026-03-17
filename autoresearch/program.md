@@ -20,7 +20,7 @@ Before starting the experiment loop:
 
 - **Primary metric**: `training_seconds` (minimize)
 - **Constraint**: `val_f1_macro >= 0.94` (within ~2% of baseline epoch-3 F1 of 0.96)
-- **Baseline**: F1 = 0.96 at epoch 3, F1 = 0.9951 at convergence.
+- **Baseline**: F1 = 0.96 at epoch 3, F1 = 0.99 at convergence.
 
 Training runs up to 10 epochs with patience=3. Each run should complete in roughly 5 minutes
 (target budget per experiment). If a run exceeds 10 minutes, kill it and record as `timeout`.
