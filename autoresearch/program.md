@@ -19,8 +19,8 @@ Before starting the experiment loop:
 ## Objective
 
 - **Primary metric**: `training_seconds` (minimize)
-- **Constraint**: `val_f1_macro >= baseline_epoch3_f1 × 0.98` (within 2% of baseline at epoch 3)
-- **Baseline**: F1 = 0.9951 at convergence. Establish epoch-3 baseline on first run.
+- **Constraint**: `val_f1_macro >= 0.94` (within ~2% of baseline epoch-3 F1 of 0.96)
+- **Baseline**: F1 = 0.96 at epoch 3, F1 = 0.9951 at convergence.
 
 Training runs up to 10 epochs with patience=3. Each run should complete in roughly 5 minutes
 (target budget per experiment). If a run exceeds 10 minutes, kill it and record as `timeout`.
@@ -58,24 +58,52 @@ Log **every** experiment (kept or reverted) to `autoresearch/results.tsv`.
 
 ## Execution
 
-Experiments run on the remote server (`xkraus1@nymfe01.fi.muni.cz`). Always run inside a
-`tmux` session so the experiment survives SSH disconnects:
+Code changes happen **locally**. Training runs on the **remote** server. You must push and
+pull to sync between the two.
+
+### Workflow per experiment
 
 ```bash
-# SSH in and attach (or create) a session
+# 1. Make code changes locally (edit src/ files)
+
+# 2. Commit and push to the autoresearch branch
+git add src/
+git commit -m "autoresearch: <description>"
+git push origin autoresearch/<tag>
+
+# 3. Pull on remote and run the experiment
+ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
+
+# 4. Fetch the results back
+ssh xkraus1@nymfe01.fi.muni.cz "cat ~/data/pv056-project-2026/autoresearch/run.log"
+
+# 5. Parse metrics and apply decision rule (keep or revert locally)
+```
+
+### Remote paths
+
+The repo on the remote server is at `~/data/pv056-project-2026/`. The venv is at
+`~/data/pv056-project-2026/.venv/`.
+
+### Useful commands
+
+```bash
+# Monitor a running experiment
+ssh xkraus1@nymfe01.fi.muni.cz "tail -f ~/data/pv056-project-2026/autoresearch/run.log"
+
+# Quick metrics extraction from remote
+ssh xkraus1@nymfe01.fi.muni.cz "grep -E '^(val_f1_macro|training_seconds|peak_vram_mb):' ~/data/pv056-project-2026/autoresearch/run.log"
+
+# Run inside tmux for long sessions (survives SSH disconnect)
 ssh xkraus1@nymfe01.fi.muni.cz
 tmux attach -t autoresearch || tmux new -s autoresearch
-cd pv056-project-2026
+cd ~/data/pv056-project-2026
 source .venv/bin/activate
-
-# Run experiment
 python autoresearch/run_experiment.py > autoresearch/run.log 2>&1
+# Detach: Ctrl+B, then D
 ```
 
-To monitor progress from your local machine without staying connected:
-```bash
-ssh xkraus1@nymfe01.fi.muni.cz "tail -f pv056-project-2026/autoresearch/run.log"
-```
+### Output format
 
 Parse the structured block at the end of `autoresearch/run.log`:
 ```
@@ -85,11 +113,6 @@ train_loss:       <float>
 best_epoch:       <int>
 training_seconds: <float>
 peak_vram_mb:     <float>
-```
-
-To extract quickly:
-```bash
-grep -E "^(val_f1_macro|training_seconds|peak_vram_mb):" autoresearch/run.log
 ```
 
 If the file is empty or the block is missing, the run crashed — check stderr and record `crash`.
@@ -147,7 +170,7 @@ Try these **one at a time**. Ordered roughly by expected impact:
 
 ### 9. num_workers
 - Try 2, 6, 8 (currently 4) — optimal depends on CPU cores and I/O speed
-- On Windows, higher num_workers can sometimes hurt due to process spawn overhead
+- Remote runs on Linux, so higher num_workers is generally safe (fork, not spawn)
 
 ### 10. Gradient Accumulation
 - Simulate larger batch size with fewer actual forward passes
@@ -161,16 +184,21 @@ Operate continuously without pausing for human confirmation:
 while True:
     1. Read current best metrics from results.tsv (last "kept" row)
     2. Pick the highest-expected-impact untried optimization
-    3. Make ONE targeted change to the modifiable files
-    4. Run: python autoresearch/run_experiment.py > autoresearch/run.log 2>&1
-       - If run takes > 10 min, kill it (Ctrl+C), record timeout, revert
-    5. Check if run.log ends with the structured "---" block
-       - If missing: crash — revert, record crash
-    6. Parse val_f1_macro and training_seconds
-    7. Apply decision rule (keep or revert)
-    8. Append row to results.tsv with commit hash (or "reverted"), metrics, status, description
-    9. If kept: git add -p src/ && git commit -m "autoresearch: <description> | F1={:.4f} sec={:.0f}"
-   10. Repeat
+    3. Make ONE targeted change to the modifiable files (locally)
+    4. git add src/ && git commit -m "autoresearch: <description>"
+    5. git push origin autoresearch/<tag>
+    6. Run on remote:
+       ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
+       - If run takes > 10 min, kill it, record timeout
+    7. Fetch results:
+       ssh xkraus1@nymfe01.fi.muni.cz "cat ~/data/pv056-project-2026/autoresearch/run.log"
+    8. Check if output ends with the structured "---" block
+       - If missing: crash — record crash
+    9. Parse val_f1_macro and training_seconds
+   10. Apply decision rule:
+       - If KEEP: append row to results.tsv, done
+       - If REVERT: git revert HEAD --no-edit, git push, append row to results.tsv
+   11. Repeat
 ```
 
 ## Logging

@@ -1,0 +1,7 @@
+commit	val_f1_macro	train_loss	training_sec	vram_mb	status	description
+baseline	0.9855	0.1206	684.3	3063.3	kept	Baseline: ResNet50, img_size=224, embedding_dim=256, lr=6.52e-4
+reverted	0.9855	0.1206	684.5	3063.3	reverted	Mixed precision (torch.amp) — no speedup
+reverted	0.9855	0.1206	691.0	3063.3	reverted	Lighter augmentation (no vertical flip, no color jitter, no rotation) — slower
+reverted	0.9855	0.1206	687.2	3063.3	reverted	Reduce img_size from 224 to 192 — slower despite smaller images
+reverted	0.9855	0.1206	687.3	3063.3	reverted	Increase batch size from 32 to 64 — slower, no improvement
+reverted	0.9855	0.1206	685.2	3063.3	reverted	ResNet-18 backbone (vs ResNet-50) — negligible speedup (0.1%)
