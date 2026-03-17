@@ -1,5 +1,6 @@
 data/
 results/models/
+results/plots/
 __pycache__/
 *.pyc
 .env
