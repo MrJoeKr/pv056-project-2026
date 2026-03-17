@@ -83,7 +83,7 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
 
     # Optimizer with differential LR
     optimizer = torch.optim.Adam([
-        {"params": model.get_backbone_params(), "lr": config.lr * 0.1},
+        {"params": model.get_backbone_params(), "lr": config.lr * config.lr_backbone_factor},
         {"params": model.get_head_params(), "lr": config.lr},
     ], weight_decay=config.weight_decay)
 

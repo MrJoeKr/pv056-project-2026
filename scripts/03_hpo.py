@@ -1,13 +1,8 @@
 """
 03_hpo.py — Hyperparameter Optimization with Optuna (R2a)
 
-Tunes on fold 0 for speed. Hyperparameters:
-  - embedding_dim: {128, 256, 512}
-  - margin: [0.05, 0.5]
-  - lr: [1e-5, 1e-3] (log scale)
-  - mining_strategy: {batch_hard, semihard, multi_similarity}
-  - batch_size: {32, 64, 128}
-  - samples_per_class: {2, 4, 8}
+Tunes on fold 0 for speed.
+Hyperparameters are in objective() function.
 
 Generates:
   - results/plots/hpo_history.png
@@ -18,6 +13,7 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import numpy as np
 import optuna
 from optuna.pruners import MedianPruner
 import pandas as pd
@@ -31,6 +27,7 @@ from src.dataset import (
     get_val_transform,
     get_stratified_folds,
     create_samplers,
+    get_stratified_subset,
 )
 from src.model import EmbeddingNet
 from src.losses import get_loss_and_miner
@@ -41,20 +38,31 @@ from src.visualization import plot_hpo_history
 from sklearn.metrics import f1_score
 
 
-def objective(trial: optuna.Trial, base_config: Config, folds):
+def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
     """Optuna objective: train on fold 0, return best val F1."""
     # Sample hyperparameters
     embedding_dim = trial.suggest_categorical("embedding_dim", [128, 256, 512])
     margin = trial.suggest_float("margin", 0.05, 0.5)
     lr = trial.suggest_float("lr", 1e-5, 1e-3, log=True)
+    weight_decay = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
+    lr_backbone_factor = trial.suggest_float("lr_backbone_factor", 0.01, 0.5, log=True)
     mining_strategy = trial.suggest_categorical(
         "mining_strategy", ["batch_hard", "semihard", "multi_similarity"]
     )
     batch_size = trial.suggest_categorical("batch_size", [32, 64, 128])
-    samples_per_class = trial.suggest_categorical("samples_per_class", [2, 4, 8])
 
     set_seed(base_config.seed)
     train_idx, val_idx = folds[0]
+
+    train_labels = full_labels[train_idx]
+    val_labels   = full_labels[val_idx]
+
+    proto_idx = get_stratified_subset(
+        train_idx, train_labels, base_config.hpo_proto_samples_per_class, base_config.seed
+    )
+    val_subset_idx = get_stratified_subset(
+        val_idx, val_labels, base_config.hpo_val_samples_per_class, base_config.seed
+    )
 
     # Create datasets
     train_dataset = PlantVillageDataset(
@@ -62,15 +70,10 @@ def objective(trial: optuna.Trial, base_config: Config, folds):
         transform=get_train_transform(base_config.img_size),
         indices=train_idx,
     )
-    val_dataset = PlantVillageDataset(
-        base_config.data_dir, base_config.classes,
-        transform=get_val_transform(base_config.img_size),
-        indices=val_idx,
-    )
 
     # Samplers and loaders
     try:
-        train_sampler = create_samplers(train_dataset.labels, samples_per_class)
+        train_sampler = create_samplers(train_dataset.labels, batch_size // base_config.num_classes)
     except Exception:
         return 0.0  # Invalid config
 
@@ -80,14 +83,19 @@ def objective(trial: optuna.Trial, base_config: Config, folds):
         pin_memory=True, drop_last=True,
     )
     val_loader = DataLoader(
-        val_dataset, batch_size=batch_size,
+        PlantVillageDataset(
+            base_config.data_dir, base_config.classes,
+            transform=get_val_transform(base_config.img_size),
+            indices=val_subset_idx,
+        ),
+        batch_size=batch_size,
         shuffle=False, num_workers=base_config.num_workers, pin_memory=True,
     )
     train_eval_loader = DataLoader(
         PlantVillageDataset(
             base_config.data_dir, base_config.classes,
             transform=get_val_transform(base_config.img_size),
-            indices=train_idx,
+            indices=proto_idx,
         ),
         batch_size=batch_size,
         shuffle=False, num_workers=base_config.num_workers, pin_memory=True,
@@ -98,9 +106,9 @@ def objective(trial: optuna.Trial, base_config: Config, folds):
     loss_fn, miner_fn = get_loss_and_miner(mining_strategy, margin)
 
     optimizer = torch.optim.Adam([
-        {"params": model.get_backbone_params(), "lr": lr * 0.1},
+        {"params": model.get_backbone_params(), "lr": lr * lr_backbone_factor},
         {"params": model.get_head_params(), "lr": lr},
-    ], weight_decay=base_config.weight_decay)
+    ], weight_decay=weight_decay)
 
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode="max", patience=3, factor=0.5
@@ -169,6 +177,10 @@ def main():
 
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)
 
+    # Build once for stratified subset indexing in objective
+    full_dataset = PlantVillageDataset(config.data_dir, config.classes)
+    full_labels = np.array(full_dataset.labels)
+
     study = optuna.create_study(
         direction="maximize",
         pruner=MedianPruner(n_startup_trials=5, n_warmup_steps=5),
@@ -176,7 +188,7 @@ def main():
     )
 
     study.optimize(
-        lambda trial: objective(trial, config, folds),
+        lambda trial: objective(trial, config, folds, full_labels),
         n_trials=config.hpo_n_trials,
         timeout=config.hpo_timeout,
         show_progress_bar=True,

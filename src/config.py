@@ -44,11 +44,12 @@ class Config:
 
     # Training
     batch_size: int = 64
-    samples_per_class: int = 4
+    samples_per_class: int = field(default=None)
     lr: float = 1e-4
     weight_decay: float = 1e-4
     epochs: int = 30
     patience: int = 7
+    lr_backbone_factor: float = 0.1  # LR multiplier for backbone (for fine-tuning)
 
     # Triplet Loss
     margin: float = 0.2
@@ -62,6 +63,9 @@ class Config:
     hpo_n_trials: int = 30
     hpo_timeout: int = 7200  # seconds
     hpo_epochs: int = 10  # epochs per trial (less than full training for speed)
+    # HPO subset sizes for embedding computation (validation only, not training)
+    hpo_proto_samples_per_class: int = 100   # samples/class for prototype centroid fitting
+    hpo_val_samples_per_class: int = 75     # samples/class for F1 scoring
 
     # Device
     device: str = field(default=None)
@@ -81,6 +85,9 @@ class Config:
             self.tables_dir = self.results_dir / "tables"
         if self.device is None:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        
+        if self.samples_per_class is None:
+            self.samples_per_class = max(4, self.batch_size // self.num_classes)
 
     @property
     def num_classes(self) -> int:

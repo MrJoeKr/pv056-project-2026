@@ -104,6 +104,33 @@ def get_stratified_folds(data_dir: Path, classes: List[str], n_folds: int = 5, s
     return folds
 
 
-def create_samplers(labels: List[int], samples_per_class: int = 4):
+def create_samplers(labels: List[int], samples_per_class: int):
     """Create MPerClassSampler for effective triplet mining."""
     return MPerClassSampler(labels, m=samples_per_class, length_before_new_iter=len(labels))
+
+
+def get_stratified_subset(
+    indices: np.ndarray,
+    labels: np.ndarray,
+    max_per_class: int,
+    seed: int = 42,
+) -> np.ndarray:
+    """Return a stratified subset of fold indices with at most max_per_class per class.
+
+    Args:
+        indices:       fold indices into the full dataset (e.g. train_idx from folds)
+        labels:        class label for each index in `indices` (same length)
+        max_per_class: cap on samples per class; classes with fewer samples keep all
+        seed:          RNG seed for reproducibility
+
+    Returns:
+        Subset of `indices`, stratified by class.
+    """
+    rng = np.random.default_rng(seed)
+    subset = []
+    for cls in np.unique(labels):
+        cls_indices = indices[labels == cls]
+        n = min(max_per_class, len(cls_indices))
+        chosen = rng.choice(cls_indices, size=n, replace=False)
+        subset.append(chosen)
+    return np.concatenate(subset)
