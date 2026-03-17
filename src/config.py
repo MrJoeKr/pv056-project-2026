@@ -61,6 +61,7 @@ class Config:
     # HPO
     hpo_n_trials: int = 30
     hpo_timeout: int = 7200  # seconds
+    hpo_epochs: int = 10  # epochs per trial (less than full training for speed)
 
     # Device
     device: str = field(default=None)

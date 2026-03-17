@@ -113,7 +113,7 @@ def objective(trial: optuna.Trial, base_config: Config, folds):
     best_f1 = 0.0
     patience_counter = 0
 
-    for epoch in range(base_config.epochs):
+    for epoch in range(base_config.hpo_epochs):
         # Train one epoch
         model.train()
         total_loss = 0.0

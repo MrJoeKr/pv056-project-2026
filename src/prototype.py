@@ -11,7 +11,7 @@ class PrototypeClassifier:
     Also supports Mahalanobis distance for unknown detection.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.prototypes: Optional[torch.Tensor] = None  # (num_classes, embedding_dim)
         self.class_labels: Optional[list] = None
         self.covariance_inv: Optional[Dict[int, torch.Tensor]] = None  # Per-class inverse covariance
