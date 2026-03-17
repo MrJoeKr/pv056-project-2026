@@ -9,10 +9,22 @@ classification quality on the PlantVillage plant disease dataset.
 Before starting the experiment loop:
 
 1. Agree on a run tag: propose a tag based on today's date (e.g. `mar5`). The branch `autoresearch/<tag>` must not already exist — this is a fresh run.
-2. Create the branch: `git checkout -b autoresearch/<tag>`
+2. Create and push the branch locally:
+   ```bash
+   git checkout -b autoresearch/<tag>
+   git push -u origin autoresearch/<tag>
+   ```
 3. Read the key in-scope files: `src/config.py`, `src/model.py`, `src/trainer.py`, `src/dataset.py`, `src/losses.py`
-4. Verify the data exists: `data/PlantVillage/` should have 15 class subdirectories
-5. Run the baseline experiment to establish reference metrics: `python autoresearch/run_experiment.py > autoresearch/run.log 2>&1`
+4. Verify the data exists on remote:
+   ```bash
+   ssh xkraus1@nymfe01.fi.muni.cz "ls ~/data/pv056-project-2026/data/PlantVillage/ | wc -l"
+   ```
+   Expected: 15 class subdirectories.
+5. Run the baseline experiment on remote to establish reference metrics:
+   ```bash
+   ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git fetch && git checkout autoresearch/<tag> && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
+   ssh xkraus1@nymfe01.fi.muni.cz "grep -E '^(val_f1_macro|training_seconds|peak_vram_mb):' ~/data/pv056-project-2026/autoresearch/run.log"
+   ```
 6. Record the baseline row in `autoresearch/results.tsv`
 7. Confirm you understand the objective and are ready to iterate
 
@@ -49,7 +61,7 @@ If a run OOMs, record `oom` in status and revert immediately.
 
 After each experiment:
 1. Parse `val_f1_macro` and `training_seconds` from `autoresearch/run.log`
-2. If `training_seconds` decreased **AND** `val_f1_macro >= baseline_epoch3_f1 × 0.98` → **KEEP**, update baseline, commit
+2. If `training_seconds` decreased **AND** `val_f1_macro >= 0.94` → **KEEP**, update baseline, commit
 3. If `val_f1_macro` drops below threshold → **REVERT** (`git checkout -- src/`), regardless of speed gain
 4. If `training_seconds` did not decrease → **REVERT**
 5. If run crashed or timed out → **REVERT**, record `crash`/`timeout` in status
@@ -72,7 +84,7 @@ git commit -m "autoresearch: <description>"
 git push origin autoresearch/<tag>
 
 # 3. Pull on remote and run the experiment
-ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
+ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git fetch && git checkout autoresearch/<tag> && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
 
 # 4. Fetch the results back
 ssh xkraus1@nymfe01.fi.muni.cz "cat ~/data/pv056-project-2026/autoresearch/run.log"
@@ -150,8 +162,7 @@ Try these **one at a time**. Ordered roughly by expected impact:
 - Smaller = faster head computation + smaller prototype centroids during validation
 
 ### 5. torch.compile()
-- Wrap model: `model = torch.compile(model)` in `run_experiment.py`... wait, that's read-only
-- Add compile call in `trainer.py` after model is moved to device
+- Add `model = torch.compile(model)` in `trainer.py` after the model is moved to device
 - PyTorch 2.x; adds ~30s startup cost but speeds up repeated kernels
 
 ### 6. Batch Size / Sampler
@@ -188,7 +199,7 @@ while True:
     4. git add src/ && git commit -m "autoresearch: <description>"
     5. git push origin autoresearch/<tag>
     6. Run on remote:
-       ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
+       ssh xkraus1@nymfe01.fi.muni.cz "cd ~/data/pv056-project-2026 && git fetch && git checkout autoresearch/<tag> && git pull && source .venv/bin/activate && python autoresearch/run_experiment.py > autoresearch/run.log 2>&1"
        - If run takes > 10 min, kill it, record timeout
     7. Fetch results:
        ssh xkraus1@nymfe01.fi.muni.cz "cat ~/data/pv056-project-2026/autoresearch/run.log"
