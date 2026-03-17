@@ -33,6 +33,7 @@ class Trainer:
         self.device = device
         self.patience = patience
         self.prototype_clf = PrototypeClassifier()
+        self.scaler = torch.amp.GradScaler("cuda") if device == "cuda" else None
 
     def train_one_epoch(self, dataloader: DataLoader) -> float:
         """Train for one epoch. Returns average loss."""
@@ -44,14 +45,27 @@ class Trainer:
             images = images.to(self.device)
             labels = labels.to(self.device)
 
-            embeddings = self.model(images)
-            hard_pairs = self.miner_fn(embeddings, labels)
-            loss = self.loss_fn(embeddings, labels, hard_pairs)
-
             self.optimizer.zero_grad()
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.optimizer.step()
+
+            # Mixed precision training
+            if self.scaler is not None:
+                with torch.amp.autocast("cuda"):
+                    embeddings = self.model(images)
+                    hard_pairs = self.miner_fn(embeddings, labels)
+                    loss = self.loss_fn(embeddings, labels, hard_pairs)
+
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                embeddings = self.model(images)
+                hard_pairs = self.miner_fn(embeddings, labels)
+                loss = self.loss_fn(embeddings, labels, hard_pairs)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.optimizer.step()
 
             total_loss += loss.item()
             n_batches += 1
