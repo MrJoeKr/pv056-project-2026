@@ -38,21 +38,21 @@ class Config:
     num_workers: int = 4
 
     # Model
-    embedding_dim: int = 512
+    embedding_dim: int = 256
     backbone: str = "resnet50"
     pretrained: bool = True
 
     # Training
-    batch_size: int = 64
+    batch_size: int = 32
     samples_per_class: int = field(default=None)
-    lr: float = 1e-4
-    weight_decay: float = 1e-4
+    lr: float = 0.0006522539381366117
+    weight_decay: float = 0.00027975687039343293
     epochs: int = 30
     patience: int = 7
-    lr_backbone_factor: float = 0.1  # LR multiplier for backbone (for fine-tuning)
+    lr_backbone_factor: float = 0.182640786284709  # LR multiplier for backbone (for fine-tuning)
 
     # Triplet Loss
-    margin: float = 0.2
+    margin: float = 0.14841225693698334
     mining_strategy: str = "batch_hard"  # batch_hard, semihard, multi_similarity
 
     # CV
