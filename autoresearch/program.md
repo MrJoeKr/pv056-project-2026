@@ -26,7 +26,7 @@ Before starting the experiment loop:
    ssh xkraus1@nymfe01.fi.muni.cz "grep -E '^(val_f1_macro|training_seconds|peak_vram_mb):' ~/data/pv056-project-2026/autoresearch/run.log"
    ```
 6. Record the baseline row in `autoresearch/results.tsv`
-7. Confirm you understand the objective and are ready to iterate
+7. Confirm you understand the objective and are ready to iterate. Do not interrupt.
 
 ## Objective
 
