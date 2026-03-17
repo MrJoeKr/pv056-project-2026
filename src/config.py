@@ -39,7 +39,7 @@ class Config:
 
     # Model
     embedding_dim: int = 256
-    backbone: str = "resnet34"
+    backbone: str = "resnet18"
     pretrained: bool = True
 
     # Training
