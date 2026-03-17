@@ -45,14 +45,14 @@ class Config:
     # Training
     batch_size: int = 32
     samples_per_class: int = field(default=None)
-    lr: float = 0.0006522539381366117
-    weight_decay: float = 0.00027975687039343293
+    lr: float = 6.52e-4
+    weight_decay: float = 2.80e-4
     epochs: int = 30
     patience: int = 7
-    lr_backbone_factor: float = 0.182640786284709  # LR multiplier for backbone (for fine-tuning)
+    lr_backbone_factor: float = 0.1826  # LR multiplier for backbone (for fine-tuning)
 
     # Triplet Loss
-    margin: float = 0.14841225693698334
+    margin: float = 0.1484
     mining_strategy: str = "batch_hard"  # batch_hard, semihard, multi_similarity
 
     # CV
