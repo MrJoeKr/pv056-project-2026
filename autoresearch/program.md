@@ -42,8 +42,8 @@ changes that reduce per-epoch wall-clock time while preserving embedding quality
 changes produce similar speedups, keep the simpler one. Complexity that only helps this one
 dataset is not worth it.
 
-**VRAM constraint:** Must fit in 6 GB (local RTX 3060 Laptop GPU). If a run OOMs, record
-`oom` in status and revert immediately.
+**VRAM constraint:** Must fit in 8 GB (remote RTX 4060 Ti on nymfe, `xkraus1@nymfe01.fi.muni.cz`).
+If a run OOMs, record `oom` in status and revert immediately.
 
 ## Decision Rule
 
@@ -58,8 +58,23 @@ Log **every** experiment (kept or reverted) to `autoresearch/results.tsv`.
 
 ## Execution
 
+Experiments run on the remote server (`xkraus1@nymfe01.fi.muni.cz`). Always run inside a
+`tmux` session so the experiment survives SSH disconnects:
+
 ```bash
+# SSH in and attach (or create) a session
+ssh xkraus1@nymfe01.fi.muni.cz
+tmux attach -t autoresearch || tmux new -s autoresearch
+cd pv056-project-2026
+source .venv/bin/activate
+
+# Run experiment
 python autoresearch/run_experiment.py > autoresearch/run.log 2>&1
+```
+
+To monitor progress from your local machine without staying connected:
+```bash
+ssh xkraus1@nymfe01.fi.muni.cz "tail -f pv056-project-2026/autoresearch/run.log"
 ```
 
 Parse the structured block at the end of `autoresearch/run.log`:
@@ -117,7 +132,7 @@ Try these **one at a time**. Ordered roughly by expected impact:
 - PyTorch 2.x; adds ~30s startup cost but speeds up repeated kernels
 
 ### 6. Batch Size / Sampler
-- Larger batch size saturates GPU (within 6 GB VRAM)
+- Larger batch size saturates GPU (within 8 GB VRAM)
 - Check `samples_per_class` too — MPerClassSampler controls batch composition
 
 ### 7. Lighter Augmentation
