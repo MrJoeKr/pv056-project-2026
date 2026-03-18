@@ -29,7 +29,7 @@ class EmbeddingNet(nn.Module):
         self.backbone = nn.Sequential(*list(net.children())[:-1])  # Output: (B, feature_dim, 1, 1)
 
         # Embedding head (adaptive to feature_dim)
-        hidden_dim = feature_dim // 2
+        hidden_dim = max(512, feature_dim // 2)
         self.embedding_head = nn.Sequential(
             nn.Linear(feature_dim, hidden_dim),
             nn.BatchNorm1d(hidden_dim),
