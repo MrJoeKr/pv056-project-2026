@@ -26,6 +26,12 @@ class Trainer:
         patience: int = 7,
     ):
         self.model = model.to(device)
+        # Compile model for faster inference (PyTorch 2.0+)
+        if device == "cuda":
+            try:
+                self.model = torch.compile(self.model, mode="reduce-overhead")
+            except Exception:
+                pass  # torch.compile not available or failed
         self.loss_fn = loss_fn
         self.miner_fn = miner_fn
         self.optimizer = optimizer
