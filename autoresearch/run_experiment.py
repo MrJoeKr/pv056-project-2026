@@ -113,6 +113,7 @@ def main():
     trainer = Trainer(
         model, loss_fn, miner_fn, optimizer, scheduler,
         device=config.device, patience=config.patience,
+        freeze_backbone=config.freeze_backbone,
     )
 
     # Override validate to use eval loader for prototypes

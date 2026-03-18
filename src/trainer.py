@@ -24,8 +24,13 @@ class Trainer:
         scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
         device: str = "cuda",
         patience: int = 7,
+        freeze_backbone: bool = False,
     ):
         self.model = model.to(device)
+        # Optionally freeze backbone to speed up training (train only embedding head)
+        if freeze_backbone:
+            for param in self.model.backbone.parameters():
+                param.requires_grad = False
         self.loss_fn = loss_fn
         self.miner_fn = miner_fn
         self.optimizer = optimizer

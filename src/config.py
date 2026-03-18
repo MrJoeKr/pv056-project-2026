@@ -50,6 +50,7 @@ class Config:
     epochs: int = 30
     patience: int = 7
     lr_backbone_factor: float = 0.1826  # LR multiplier for backbone (for fine-tuning)
+    freeze_backbone: bool = True  # Freeze backbone, train only embedding head
 
     # Triplet Loss
     margin: float = 0.1484
