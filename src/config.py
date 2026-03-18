@@ -43,7 +43,7 @@ class Config:
     pretrained: bool = True
 
     # Training
-    batch_size: int = 32
+    batch_size: int = 64
     samples_per_class: int = field(default=None)
     lr: float = 6.52e-4
     weight_decay: float = 2.80e-4
