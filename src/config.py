@@ -62,7 +62,12 @@ class Config:
     # HPO
     hpo_n_trials: int = 30
     hpo_timeout: int = 7200  # seconds
-    hpo_epochs: int = 10  # epochs per trial (less than full training for speed)
+    # 10 epochs per trial is a deliberate low-fidelity proxy: HPO needs to rank configurations,
+    # not train them to convergence. Relative ordering of hyperparameter configurations stabilizes
+    # early in training, and Optuna's MedianPruner already prunes underperforming trials at each
+    # step. This follows the Hyperband/BOHB paradigm of using early stopping as a cheap
+    # approximation, making it a principled choice rather than just a computational shortcut.
+    hpo_epochs: int = 10
     # HPO subset sizes for embedding computation (validation only, not training)
     hpo_proto_samples_per_class: int = 100   # samples/class for prototype centroid fitting
     hpo_val_samples_per_class: int = 75     # samples/class for F1 scoring
