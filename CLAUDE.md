@@ -8,6 +8,30 @@ Two subtasks:
 - **Subtask a**: Classify plant diseases with triplet loss, 5-fold stratified CV, beat 0.76 F1macro baseline
 - **Subtask b**: Detect unknown diseases — exclude `Tomato_Bacterial_spot` from training, detect it via Mahalanobis distance (NOT softmax probabilities)
 
+## Solution Requirements
+
+All of the following must be completed (R1a–R3b):
+
+**R1 — Data analysis**
+- R1a: Analyze and visualize class label distribution → `scripts/01_eda.py`
+- R1b: Find and visualize outliers/anomalies → `scripts/01_eda.py` + `src/outlier_detection.py`
+
+**R2 — Model training**
+- R2a: Use HPO to find hyperparameters → `scripts/03_hpo.py` (Optuna, 30 trials)
+- R2b: Visualize training progress, train to convergence → `scripts/02_train.py` + training curves in `src/visualization.py`
+
+**R3 — Results analysis**
+- R3a: Explore successful/failed cases via confusion matrix and explainability (Grad-CAM) → `scripts/04_evaluate.py`
+- R3b: Present results with appropriate tables/plots; consider statistical tests to support claims
+
+## Deliverables
+
+1. **Google Colab notebook** — publicly shared link submitted to IS MU by April 19, 2026
+2. **Technical report** — max 2 pages + appendices, Springer template (LaTeX or Word), submitted as PDF to IS MU vault
+   - Sections: Introduction & Related Work (≥3 references), Data & Methods, Results & Discussion, Appendix (author contributions)
+   - No abstract, no keywords
+3. **10-minute presentation** — starting May 4, 2026; focus on approach and results
+
 ## Setup
 
 ```bash
