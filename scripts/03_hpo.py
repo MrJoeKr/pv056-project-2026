@@ -6,36 +6,40 @@ Hyperparameters are in objective() function.
 
 Generates:
   - results/plots/hpo_history.png
-  - results/tables/hpo_results.csv
+  - results/tables/hpo/<timestamp>/hpo_results.csv
+  - results/tables/hpo/<timestamp>/best_hpo_params.json
 """
 
-import sys
 import os
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+import json
+from datetime import datetime
 
 import numpy as np
 import optuna
-from optuna.pruners import MedianPruner
 import pandas as pd
 import torch
+from optuna.pruners import MedianPruner
+from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
 from src.config import Config
 from src.dataset import (
     PlantVillageDataset,
+    create_samplers,
+    get_stratified_folds,
+    get_stratified_subset,
     get_train_transform,
     get_val_transform,
-    get_stratified_folds,
-    create_samplers,
-    get_stratified_subset,
 )
-from src.model import EmbeddingNet
 from src.losses import get_loss_and_miner
-from src.trainer import Trainer
-from src.utils import set_seed, compute_all_embeddings
+from src.model import EmbeddingNet
 from src.prototype import PrototypeClassifier
+from src.utils import compute_all_embeddings, set_seed
 from src.visualization import plot_hpo_history
-from sklearn.metrics import f1_score
 
 
 def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
@@ -205,15 +209,18 @@ def main():
         print(f"  {k}: {v}")
 
     # Save results
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    hpo_dir = config.tables_dir / "hpo" / timestamp
+    hpo_dir.mkdir(parents=True, exist_ok=True)
+
     trials_df = study.trials_dataframe()
-    trials_df.to_csv(config.tables_dir / "hpo_results.csv", index=False)
-    print(f"Saved: {config.tables_dir / 'hpo_results.csv'}")
+    trials_df.to_csv(hpo_dir / "hpo_results.csv", index=False)
+    print(f"Saved: {hpo_dir / 'hpo_results.csv'}")
 
     # Save best params
-    import json
-    with open(config.tables_dir / "best_hpo_params.json", "w") as f:
+    with open(hpo_dir / "best_hpo_params.json", "w") as f:
         json.dump(study.best_params, f, indent=2)
-    print(f"Saved: {config.tables_dir / 'best_hpo_params.json'}")
+    print(f"Saved: {hpo_dir / 'best_hpo_params.json'}")
 
     # Plot
     plot_hpo_history(study, config.plots_dir / "hpo_history.png")
