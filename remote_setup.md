@@ -68,8 +68,6 @@ Attach to a running session to see live output:
 ssh xlogin@nymfeNN.fi.muni.cz "tmux attach -t <session-name>"
 ```
 
-Detach without killing: `Ctrl+B`, then `D`.
-
 List active sessions:
 
 ```bash
