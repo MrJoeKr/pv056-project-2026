@@ -78,7 +78,7 @@ def train_known_classes(config: Config, fold: int = 0) -> Tuple[EmbeddingNet, Pr
     trainer.fit(
         train_loader, val_loader,
         epochs=config.epochs, fold=fold,
-        save_dir=config.models_dir,
+        save_dir=config.models_dir / "unknown",
     )
 
     # Compute final prototypes on full training set

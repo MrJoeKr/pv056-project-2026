@@ -2,7 +2,7 @@
 02_train.py — 5-Fold Cross-Validation Training (R2b)
 
 Generates:
-  - results/models/best_model_fold{i}.pt
+  - results/models/train/best_model_fold{i}.pt
   - results/plots/training_curves_fold{i}.png
   - results/plots/cv_results.png
   - results/tables/cv_results.csv
@@ -109,7 +109,7 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
     history = trainer.fit(
         train_loader, val_loader,
         epochs=config.epochs, fold=fold,
-        save_dir=config.models_dir,
+        save_dir=config.models_dir / "train",
     )
 
     return history
