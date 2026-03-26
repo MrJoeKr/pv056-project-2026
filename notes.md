@@ -10,6 +10,13 @@
 ## Training (02_train.py)
 - TODO: Run 5-fold CV training
 
+### Observations from CV runs
+- **Epochs**: Some folds were still improving at epoch 30 → try increasing max_epochs to 50–60.
+- **Spiky curves**: Training curves were zig-zaggy / high variance between epochs. Likely because
+  the HPO-found LR is ~6× larger than the old default. ReduceLROnPlateau is active so it may
+  self-correct, but worth monitoring. If spikiness persists even after the scheduler kicks in,
+  consider adding a warmup schedule or capping the LR.
+
 ## HPO (03_hpo.py)
 - TODO: Run Optuna optimization
 
