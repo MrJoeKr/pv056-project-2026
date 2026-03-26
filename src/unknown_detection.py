@@ -67,7 +67,10 @@ def train_known_classes(config: Config, fold: int = 0) -> Tuple[EmbeddingNet, Pr
     # Model, loss, optimizer
     model = EmbeddingNet(config.embedding_dim, config.pretrained)
     loss_fn, miner_fn = get_loss_and_miner(config.mining_strategy, config.margin)
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, weight_decay=config.weight_decay)
+    optimizer = torch.optim.Adam([
+        {"params": model.get_backbone_params(), "lr": config.lr * config.lr_backbone_factor},
+        {"params": model.get_head_params(), "lr": config.lr},
+    ], weight_decay=config.weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="max", patience=3, factor=0.5)
 
     # Train
@@ -107,7 +110,6 @@ def evaluate_unknown_detection(
     """
     device = config.device
     model.eval()
-    proto_clf.to(device)
 
     # Known class validation set
     folds = get_stratified_folds(
