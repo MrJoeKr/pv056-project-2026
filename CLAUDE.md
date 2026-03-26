@@ -104,6 +104,10 @@ Scripts must be run from the project root. All output goes to `results/` (plots,
 - Config defaults: embedding_dim=512, margin=0.2, lr=1e-4, batch_size=64, 30 epochs, patience=7
 - Cross-validation: 5 stratified folds, report mean +/- std F1macro
 
+## Remote Execution
+
+To run scripts on the MUNI nymfe GPU workstations, read `remote_setup.md` for full agent instructions (how to connect, check GPU availability, run scripts, sync code).
+
 ## Autoresearch Mode
 
 For autonomous speed optimization experiments, read `autoresearch/program.md` for full instructions.
