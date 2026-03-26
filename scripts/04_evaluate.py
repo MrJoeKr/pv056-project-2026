@@ -130,7 +130,7 @@ def main():
 
     # Load model
     model = EmbeddingNet(config.embedding_dim, pretrained=False)
-    checkpoint_path = config.models_dir / "best_model_fold0.pt"
+    checkpoint_path = config.models_dir / "train" / "best_model_fold0.pt"
     if checkpoint_path.exists():
         load_checkpoint(checkpoint_path, model, device=config.device)
         print(f"Loaded checkpoint: {checkpoint_path}")
