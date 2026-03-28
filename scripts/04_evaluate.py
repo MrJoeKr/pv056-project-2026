@@ -53,7 +53,7 @@ def generate_gradcam(model, dataset, proto_clf, class_names, device, n_samples=6
         print("Could not find target layer for Grad-CAM")
         return
 
-    centroids = torch.tensor(proto_clf.centroids, dtype=torch.float32).to(device)
+    centroids = proto_clf.prototypes.to(device)  # (num_classes, embedding_dim)
 
     class PrototypeDistanceTarget:
         """Grad-CAM target: negative L2 distance to the predicted class centroid.
