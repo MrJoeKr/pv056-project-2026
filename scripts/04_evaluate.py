@@ -21,6 +21,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, classification_report
+from pytorch_grad_cam import GradCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
 
 from src.config import Config
 from src.dataset import (
@@ -39,20 +41,8 @@ from src.visualization import (
 )
 
 
-def generate_gradcam(model, dataset, class_names, device, n_samples=6, save_path=None):
-    """Generate Grad-CAM visualizations for sample images."""
-    try:
-        from pytorch_grad_cam import GradCAM
-        from pytorch_grad_cam.utils.image import show_cam_on_image
-        from pytorch_grad_cam.utils.model_targets import ClassifierOutputTarget
-    except ImportError:
-        print("pytorch-grad-cam not installed, skipping Grad-CAM")
-        return
-
-    # For Grad-CAM, we need a wrapper that outputs class logits
-    # We'll use distances to prototypes as "logits" (negated, since smaller = better)
-    # Instead, use the backbone's last conv layer directly
-
+def generate_gradcam(model, dataset, proto_clf, class_names, device, n_samples=6, save_path=None):
+    """Generate Grad-CAM visualizations using negative prototype distance as target."""
     # Get the last conv layer of the backbone
     target_layer = None
     for name, module in model.backbone.named_modules():
@@ -63,23 +53,28 @@ def generate_gradcam(model, dataset, class_names, device, n_samples=6, save_path
         print("Could not find target layer for Grad-CAM")
         return
 
-    # Wrapper model that outputs embeddings as logits
-    class GradCAMWrapper(torch.nn.Module):
-        def __init__(self, model):
-            super().__init__()
-            self.model = model
+    centroids = torch.tensor(proto_clf.centroids, dtype=torch.float32).to(device)
 
-        def forward(self, x):
-            return self.model(x)
+    class PrototypeDistanceTarget:
+        """Grad-CAM target: negative L2 distance to the predicted class centroid.
 
-    wrapper = GradCAMWrapper(model)
-    cam = GradCAM(model=wrapper, target_layers=[target_layer])
+        Maximising this scalar = minimising distance to the prototype, which is
+        exactly what the classifier optimises. Gradients therefore highlight the
+        regions that pull the embedding toward the correct class.
+        """
+        def __init__(self, label):
+            self.label = label
+
+        def __call__(self, embedding):
+            centroid = centroids[self.label]
+            return -torch.norm(embedding - centroid, dim=-1)
+
+    cam = GradCAM(model=model, target_layers=[target_layer])
 
     images = []
     cam_images = []
     titles = []
 
-    # Pick diverse samples
     indices = np.linspace(0, len(dataset) - 1, n_samples, dtype=int)
 
     mean = np.array([0.485, 0.456, 0.406])
@@ -89,12 +84,10 @@ def generate_gradcam(model, dataset, class_names, device, n_samples=6, save_path
         img_tensor, label = dataset[idx]
         input_tensor = img_tensor.unsqueeze(0).to(device)
 
-        # Use first embedding dimension as target
-        targets = [ClassifierOutputTarget(0)]
+        targets = [PrototypeDistanceTarget(label)]
         grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
         grayscale_cam = grayscale_cam[0]
 
-        # Denormalize image
         img_np = img_tensor.permute(1, 2, 0).numpy()
         img_np = (img_np * std + mean).clip(0, 1)
 
@@ -206,7 +199,7 @@ def main():
 
     # ── Grad-CAM (R3a) ──
     print("Generating Grad-CAM visualizations...")
-    generate_gradcam(model, val_dataset, config.classes, config.device,
+    generate_gradcam(model, val_dataset, proto_clf, config.classes, config.device,
                      n_samples=6, save_path=config.plots_dir / "gradcam_samples.png")
 
     # ── Results summary ──
