@@ -8,6 +8,7 @@ Generates:
   - results/plots/unknown_distance_histogram.png
   - results/plots/unknown_roc_curve.png
   - results/plots/unknown_confusion_matrix.png
+  - results/plots/unknown_umap_known_only.png
   - results/plots/unknown_umap.png
   - results/tables/unknown_detection_results.csv
 
@@ -32,6 +33,7 @@ from src.utils import set_seed
 from src.visualization import (
     plot_distance_histograms,
     plot_roc_curve,
+    plot_umap_embeddings,
     plot_umap_unknown,
     plot_unknown_confusion_matrix,
 )
@@ -112,6 +114,13 @@ def main():
         results["y_true"].astype(int),
         results["y_pred"],
         config.plots_dir / "unknown_confusion_matrix.png",
+    )
+
+    plot_umap_embeddings(
+        results["known_embeddings"],
+        results["known_class_labels"],
+        config.get_known_classes(),
+        config.plots_dir / "unknown_umap_known_only.png",
     )
 
     plot_umap_unknown(
