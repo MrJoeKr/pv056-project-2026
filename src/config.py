@@ -61,7 +61,7 @@ class Config:
 
     # HPO
     hpo_n_trials: int = 30
-    hpo_timeout: int = 7200  # seconds
+    hpo_timeout: int = 25200  # seconds (7 hours)
     # 10 epochs per trial is a deliberate low-fidelity proxy: HPO needs to rank configurations,
     # not train them to convergence. Relative ordering of hyperparameter configurations stabilizes
     # early in training, and Optuna's MedianPruner already prunes underperforming trials at each
