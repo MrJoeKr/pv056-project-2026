@@ -326,6 +326,68 @@ def plot_roc_curve(fpr, tpr, auroc: float, save_path: Path):
     print(f"Saved: {save_path}")
 
 
+def plot_umap_unknown(
+    known_embeddings: np.ndarray,
+    known_labels: np.ndarray,
+    unknown_embeddings: np.ndarray,
+    known_class_names: List[str],
+    save_path: Path,
+):
+    """UMAP of known class embeddings + unknown class overlay."""
+    from umap import UMAP
+
+    all_embeddings = np.concatenate([known_embeddings, unknown_embeddings], axis=0)
+    reducer = UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
+    coords = reducer.fit_transform(all_embeddings)
+
+    known_coords = coords[:len(known_embeddings)]
+    unknown_coords = coords[len(known_embeddings):]
+
+    fig, ax = plt.subplots(figsize=(12, 10))
+    palette = sns.color_palette("husl", len(known_class_names))
+
+    for i, name in enumerate(known_class_names):
+        mask = known_labels == i
+        short = name.replace("__", "_")[:20]
+        ax.scatter(known_coords[mask, 0], known_coords[mask, 1],
+                   c=[palette[i]], label=short, alpha=0.6, s=10)
+
+    ax.scatter(unknown_coords[:, 0], unknown_coords[:, 1],
+               c="black", marker="x", s=20, alpha=0.7,
+               label="Unknown (Tomato Bacterial Spot)", zorder=5)
+
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=7, markerscale=2)
+    ax.set_title("UMAP: Known vs Unknown Embeddings")
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+
+def plot_unknown_confusion_matrix(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    save_path: Path,
+):
+    """Binary confusion matrix (Known vs Unknown) at optimal threshold."""
+    cm = confusion_matrix(y_true, y_pred)
+
+    fig, ax = plt.subplots(figsize=(6, 5))
+    disp = ConfusionMatrixDisplay(cm, display_labels=["Known", "Unknown"])
+    disp.plot(ax=ax, cmap="Blues", values_format="d")
+    ax.set_title("Binary Confusion Matrix — Known vs Unknown")
+
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+
 # ──────────────────── HPO Plots ────────────────────
 
 
