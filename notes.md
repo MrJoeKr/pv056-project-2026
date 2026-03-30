@@ -1,5 +1,17 @@
 # Progress Notes
 
+## Google Colab Deliverable
+
+No need to convert the project to `.ipynb`. The Colab notebook (`colab.ipynb`) is a thin orchestration layer that:
+1. Clones the GitHub repo
+2. Installs dependencies
+3. Runs scripts via `!python scripts/...`
+4. Displays results/plots inline with `IPython.display`
+
+The repo acts as a package for the grader — structure stays intact.
+
+**TODO before submission**: replace `YOUR_USERNAME` placeholder in the `git clone` cell of `colab.ipynb` with the actual GitHub repo URL. Also set `DRIVE_DATASET_PATH` to wherever PlantVillage lives on Drive.
+
 ## EDA (01_eda.py)
 - 15,466 images across 12 classes
 - Potato_healthy has only 152 images (significant imbalance)
@@ -60,7 +72,45 @@
 - multi_similarity with large batch_size=128 underperforms (trials 0, 4)
 - These params were used directly for the 5-fold CV training run (Run 1 above), achieving 0.9974 mean F1
 
-**Run 2**: Timeout extended to 7h (25200s) to allow more trials — running on nymfe87.
+**Run 2** — 26 trials completed/pruned, 7h timeout (nymfe89, 2026-03-29, `logs_out/hpo_20260329.log`)
+**Config**: hpo_n_trials=30, hpo_timeout=25200s, hpo_epochs=10, fold 0 only
+
+| Trial | F1       | embedding_dim | margin | lr       | mining_strategy  | batch_size | Notes |
+|-------|----------|---------------|--------|----------|------------------|------------|-------|
+| 0     | 0.9315   | 256           | 0.469  | 4.33e-5  | semihard         | 64         |       |
+| 1     | 0.9931   | 256           | 0.356  | 8.01e-5  | batch_hard       | 64         |       |
+| 2     | 0.9205   | 256           | 0.058  | 1.46e-5  | semihard         | 128        |       |
+| 3     | 0.9907   | 128           | 0.446  | 7.40e-5  | semihard         | 128        |       |
+| 4     | 0.9949   | 512           | 0.169  | 2.59e-4  | semihard         | 128        |       |
+| 5–9   | pruned   | —             | —      | —        | —                | —          |       |
+| 10    | 0.9956   | 512           | 0.327  | 7.46e-4  | semihard         | 32         |       |
+| 11    | 0.9955   | 512           | 0.318  | 8.03e-4  | semihard         | 32         |       |
+| 12    | pruned   | —             | —      | —        | —                | —          |       |
+| 13    | 0.9949   | 512           | 0.364  | 9.78e-4  | semihard         | 32         |       |
+| 14    | 0.9964   | 512           | 0.308  | 4.57e-4  | semihard         | 32         |       |
+| 15    | 0.9964   | 512           | 0.260  | 3.80e-4  | multi_similarity | 32         |       |
+| 16    | 0.9973   | 512           | 0.256  | 2.94e-4  | multi_similarity | 32         |       |
+| 17    | 0.9964   | 512           | 0.249  | 1.98e-4  | multi_similarity | 32         |       |
+| 18–19 | pruned   | —             | —      | —        | —                | —          |       |
+| 20    | 0.9940   | 512           | 0.216  | 1.33e-4  | multi_similarity | 32         |       |
+| 21    | 0.9958   | 512           | 0.261  | 2.71e-4  | multi_similarity | 32         |       |
+| 22    | 0.9964   | 512           | 0.246  | 4.85e-4  | multi_similarity | 32         |       |
+| 23    | 0.9973   | 512           | 0.166  | 2.26e-4  | multi_similarity | 32         |       |
+| **24** | **0.9976** | **512**   | **0.178** | **2.81e-4** | **multi_similarity** | **32** | **Best** |
+| 25    | pruned   | —             | —      | —        | —                | —          |       |
+| 26    | —        | —             | —      | —        | —                | —          | cut off mid-trial |
+
+**Best params (trial 24)**:
+- embedding_dim: 512, margin: 0.1776, lr: 2.808e-4, weight_decay: 5.372e-5
+- lr_backbone_factor: 0.3088, mining_strategy: multi_similarity, batch_size: 32
+
+**Observations**:
+- 26 trials completed/pruned; log cuts off mid-trial 26 (20,181 of 25,200s elapsed)
+- Strong convergence on **embedding_dim=512 + multi_similarity + batch_size=32** — dominant pattern in trials 14–24
+- Unlike Run 1, batch_hard barely appears; multi_similarity wins here
+- embedding_dim=512 consistently outperforms 128/256 in this run — opposite of wrong file I read earlier
+- HPO F1 of best trial (0.9976) slightly exceeds the current training run mean (0.9974) but comparison is not apples-to-apples (10ep vs 30ep, fold 0 vs 5-fold)
+- **Decision**: Potentially worth re-running train.py — dim=512 is better for Mahalanobis/subtask b, and multi_similarity is untested in full CV. See tradeoff discussion below.
 
 ## Evaluation (04_evaluate.py)
 - Run on nymfe01 — F1 Macro: **0.9972** (baseline 0.76, PASSED)

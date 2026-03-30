@@ -38,22 +38,28 @@ class Config:
     num_workers: int = 4
 
     # Model
-    embedding_dim: int = 256
+    # HPO Run 2 best (trial 24, 2026-03-29): 512  |  previous (Run 1 best, used for training): 256
+    embedding_dim: int = 512
     backbone: str = "resnet50"
     pretrained: bool = True
 
     # Training
     batch_size: int = 32
     samples_per_class: int = field(default=None)
-    lr: float = 6.52e-4
-    weight_decay: float = 2.80e-4
+    # HPO Run 2 best (trial 24, 2026-03-29): 2.808e-4  |  previous: 6.52e-4
+    lr: float = 2.808e-4
+    # HPO Run 2 best (trial 24, 2026-03-29): 5.372e-5  |  previous: 2.80e-4
+    weight_decay: float = 5.372e-5
     epochs: int = 30
     patience: int = 7
-    lr_backbone_factor: float = 0.1826  # LR multiplier for backbone (for fine-tuning)
+    # HPO Run 2 best (trial 24, 2026-03-29): 0.3088  |  previous: 0.1826
+    lr_backbone_factor: float = 0.3088  # LR multiplier for backbone (for fine-tuning)
 
     # Triplet Loss
-    margin: float = 0.1484
-    mining_strategy: str = "batch_hard"  # batch_hard, semihard, multi_similarity
+    # HPO Run 2 best (trial 24, 2026-03-29): 0.1776  |  previous: 0.1484
+    margin: float = 0.1776
+    # HPO Run 2 best (trial 24, 2026-03-29): multi_similarity  |  previous: batch_hard
+    mining_strategy: str = "multi_similarity"  # batch_hard, semihard, multi_similarity
 
     # CV
     n_folds: int = 5
