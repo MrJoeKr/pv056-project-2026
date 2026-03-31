@@ -159,7 +159,7 @@ def main():
 
     # Save results table
     df = pd.DataFrame({
-        "Fold": range(config.n_folds),
+        "Fold": range(len(all_histories)),
         "Best_F1": f1_scores,
         "Best_Epoch": [h["best_epoch"] for h in all_histories],
     })
