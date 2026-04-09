@@ -95,7 +95,7 @@ class Config:
         if self.tables_dir is None:
             self.tables_dir = self.results_dir / "tables"
         if self.device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
         
         if self.samples_per_class is None:
             self.samples_per_class = max(4, self.batch_size // self.num_classes)
