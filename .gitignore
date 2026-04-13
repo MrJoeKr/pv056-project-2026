@@ -1,5 +1,6 @@
 data/
 results/*
+!results/README.md
 __pycache__/
 *.pyc
 .env
