@@ -62,16 +62,20 @@ def main():
     print(f"Unknown class: {config.unknown_class}")
     print(f"Known classes ({len(config.get_known_classes())}): {config.get_known_classes()}")
 
+    # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
+    # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
+    eval_fold = 1
+
     # Resolve checkpoint path
     checkpoint_path = None
     if args.skip_training:
-        checkpoint_path = args.checkpoint or config.models_dir / "unknown" / "best_model_fold0.pt"
+        checkpoint_path = args.checkpoint or config.models_dir / "unknown" / f"best_model_fold{eval_fold}.pt"
         print(f"\nSkipping training — loading checkpoint: {checkpoint_path}")
 
     # ── Train or load model ──
-    section = "Loading model" if checkpoint_path else "Training on known classes (fold 0)"
+    section = "Loading model" if checkpoint_path else f"Training on known classes (fold {eval_fold})"
     print(f"\n=== {section} ===")
-    model, proto_clf = train_known_classes(config, fold=0, checkpoint_path=checkpoint_path)
+    model, proto_clf = train_known_classes(config, fold=eval_fold, checkpoint_path=checkpoint_path)
 
     # ── Evaluate unknown detection ──
     print("\n=== Evaluating unknown detection ===")

@@ -122,8 +122,11 @@ def main():
         config.samples_per_class = best_params.get("samples_per_class", config.samples_per_class)
 
     # Load model
+    # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
+    # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
+    eval_fold = 1
     model = EmbeddingNet(config.embedding_dim, pretrained=False)
-    checkpoint_path = config.models_dir / "train" / "best_model_fold0.pt"
+    checkpoint_path = config.models_dir / "train" / f"best_model_fold{eval_fold}.pt"
     if checkpoint_path.exists():
         load_checkpoint(checkpoint_path, model, device=config.device)
         print(f"Loaded checkpoint: {checkpoint_path}")
@@ -135,9 +138,9 @@ def main():
     model = model.to(config.device)
     model.eval()
 
-    # Get fold 0 validation set
+    # Get validation set for the eval fold
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)
-    train_idx, val_idx = folds[0]
+    train_idx, val_idx = folds[eval_fold]
 
     train_dataset = PlantVillageDataset(
         config.data_dir, config.classes,
