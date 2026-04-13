@@ -112,6 +112,12 @@ The repo acts as a package for the grader — structure stays intact.
 - HPO F1 of best trial (0.9976) slightly exceeds the current training run mean (0.9974) but comparison is not apples-to-apples (10ep vs 30ep, fold 0 vs 5-fold)
 - **Decision**: Potentially worth re-running train.py — dim=512 is better for Mahalanobis/subtask b, and multi_similarity is untested in full CV. See tradeoff discussion below.
 
+### Run 2 — 5-fold CV (2026-03-30, nymfe89, in progress)
+**Config**: embedding_dim=512, margin=0.1776, LR=2.808e-4, weight_decay=5.372e-5, lr_backbone_factor=0.3088, batch_size=32, epochs=30, patience=7, mining=multi_similarity
+Log: `logs_out/train_emb512.log`
+
+> **TODO**: Re-run with epochs=50 (or more). Run 1 showed folds 0/1/3 hadn't converged at epoch 30; same likely here. Keep patience=7 or increase to 10.
+
 ## Evaluation (04_evaluate.py)
 - Run on nymfe01 — F1 Macro: **0.9972** (baseline 0.76, PASSED)
 - Outputs: confusion_matrix.png, per_class_f1.png, umap_embeddings.png, gradcam_samples.png, results_summary.csv
