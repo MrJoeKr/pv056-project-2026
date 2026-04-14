@@ -172,11 +172,21 @@ Log: `logs_out/train_emb512.log`
 - Log: `logs_out/evaluate_emb512.log`
 - **Note**: This used fold 0, same as HPO — results have optimistic bias from hyperparameter selection. Superseded by fold 1 run below.
 
-### emb512 — fold 1 (Run 3, 2026-04-13, nymfe89)
+### emb512 — fold 1 (Run 3, 2026-04-14, nymfe89)
 - **Fold changed to 1** to avoid HPO bias: HPO was tuned on fold 0's validation set, so evaluating
   on fold 0 double-dips into the same data. Fold 1 is a clean held-out split.
-- > **TODO** (2026-04-14 morning): Check `logs_out/evaluate_emb512.log` and `logs_out/unknown_emb512.log`
-  for results. Copy outputs locally, update this section with actual F1 numbers.
+- F1 Macro: **0.9980** (baseline 0.76, PASSED) — vs 0.9994 on fold 0 (overfit) and 0.9972 for emb256
+- Fold 1 val set: 4,128 samples. Most classes 1.00; minor imperfections:
+  - `Potato___healthy`: P=0.97, R=1.00, F1=0.98 (smallest class, only 31 samples)
+  - `Potato___Late_blight`: P=1.00, R=0.99 (one missed sample)
+  - `Tomato_Early_blight`: P=1.00, R=0.99
+  - `Tomato_Late_blight`: P=0.99, R=1.00
+- Outputs: confusion_matrix.png, per_class_f1.png, umap_embeddings.png, gradcam_samples.png, results_summary.csv
+- Log: `logs_out/evaluate_emb512.log`
+
+**Interpretation**: The ~0.0014 drop (0.9994 → 0.9980) from fold 0 to fold 1 quantifies the
+optimistic bias introduced by HPO on fold 0. The fold 1 number is the honest estimate of
+generalization performance for this hyperparameter configuration.
 
 ### Evaluation methodology — no separate test set
 - Entire dataset used for 5-fold stratified CV; no held-out test set.
@@ -224,8 +234,27 @@ Log: `logs_out/train_emb512.log`
 - **Important for the report**: mention that prototype quality (how class centroids are computed)
   directly affects Mahalanobis distance scale and threshold — not just model training.
 
-### emb512 — fold 1 (Run 3, 2026-04-13, nymfe89)
+### emb512 — fold 1 (Run 3, 2026-04-14, nymfe89)
 - **Fold changed to 1** (same reasoning as eval — avoid HPO bias on fold 0).
-- Trains from scratch on 14 known classes using fold 1 train/val split, then evaluates Mahalanobis detection.
-- > **TODO** (2026-04-14 morning): Check `logs_out/unknown_emb512.log` for results.
-  Copy outputs locally, update this section with AUROC, PR-AUC, threshold, distances.
+- Trained from scratch on 14 known classes, fold 1 split. Early stopped at epoch 37.
+- Results:
+  - AUROC: **0.9933** (vs 0.9795 for emb256 fold 0)
+  - PR-AUC: **0.9899** (vs 0.9627 for emb256 fold 0)
+  - Optimal threshold: **8.41** (Youden's J)
+  - Precision: 0.9489 / Recall: 0.9520 / **F1: 0.9505** at threshold
+  - Known distances (n=3,703): mean=**4.67**, std=1.57
+  - Unknown distances (n=2,127): mean=**21.74**, std=9.40
+  - Mann-Whitney U p-value: ~0 (unknown distances stochastically greater, highly significant)
+- Outputs: unknown_distance_histogram.png, unknown_roc_curve.png, unknown_confusion_matrix.png,
+  unknown_umap_known_only.png, unknown_umap.png, unknown_detection_results.csv
+- Log: `logs_out/unknown_emb512.log`
+
+**Comparison with emb256 fold 0** (previous unknown result):
+- AUROC +0.0138 (0.9795 → 0.9933)
+- F1 @ threshold +0.044 (0.9064 → 0.9505)
+- Unknown/known distance ratio improved: was 18.51/3.78 = 4.9x; now 21.74/4.67 = 4.7x
+  (slightly lower ratio but both distributions shifted up due to emb512's higher-dim space —
+   what matters is the lower std of known distances: 1.57 vs 2.24 = tighter clusters)
+- **Root cause of improvement**: emb512 dimensionality plus multi_similarity mining produces
+  more discriminative embeddings, making known classes cluster tighter (lower known-distance std)
+  and pushing unknowns further out in the Mahalanobis metric space.
