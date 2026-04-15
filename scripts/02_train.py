@@ -19,7 +19,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from src.config import Config
+from src.config import Config, load_config_overrides
 from src.dataset import (
     PlantVillageDataset,
     get_train_transform,
@@ -78,7 +78,7 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
     )
 
     # Model
-    model = EmbeddingNet(config.embedding_dim, config.pretrained)
+    model = EmbeddingNet(config.embedding_dim, config.pretrained, backbone=config.backbone)
     loss_fn, miner_fn = get_loss_and_miner(config.mining_strategy, config.margin)
 
     # Optimizer with differential LR
@@ -95,6 +95,7 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
     trainer = Trainer(
         model, loss_fn, miner_fn, optimizer, scheduler,
         device=config.device, patience=config.patience,
+        use_amp=config.use_amp,
     )
 
     # The trainer.validate uses the train_eval_loader for prototype fitting
@@ -117,14 +118,16 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
 
 def main():
     config = Config()
+    config = load_config_overrides(config)
     set_seed(config.seed)
 
-    print("Plant Disease Classification — 5-Fold CV Training")
-    print(f"Device: {config.device}")
+    print("Plant Disease Classification — CV Training")
+    print(f"Device: {config.device} | AMP: {config.use_amp}")
+    print(f"Backbone: {config.backbone} | Img size: {config.img_size}")
     print(f"Embedding dim: {config.embedding_dim}")
     print(f"Mining: {config.mining_strategy}, Margin: {config.margin}")
     print(f"LR: {config.lr}, Batch size: {config.batch_size}")
-    print(f"Epochs: {config.epochs}, Patience: {config.patience}")
+    print(f"Epochs: {config.epochs}, Patience: {config.patience}, Folds: {config.n_folds}")
 
     # Get stratified folds
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)
@@ -144,7 +147,7 @@ def main():
 
     # ── Summary ──
     print(f"\n{'='*60}")
-    print("  CROSS-VALIDATION SUMMARY")
+    print(f"  {config.n_folds}-FOLD CV SUMMARY")
     print(f"{'='*60}")
 
     f1_scores = [h["best_f1"] for h in all_histories]

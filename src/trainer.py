@@ -24,6 +24,7 @@ class Trainer:
         scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
         device: str = "cuda",
         patience: int = 7,
+        use_amp: bool = False,
     ):
         self.model = model.to(device)
         self.loss_fn = loss_fn
@@ -32,6 +33,8 @@ class Trainer:
         self.scheduler = scheduler
         self.device = device
         self.patience = patience
+        self.use_amp = use_amp and device.startswith("cuda")
+        self.scaler = torch.amp.GradScaler("cuda", enabled=self.use_amp)
         self.prototype_clf = PrototypeClassifier()
 
     def train_one_epoch(self, dataloader: DataLoader) -> float:
@@ -44,14 +47,17 @@ class Trainer:
             images = images.to(self.device)
             labels = labels.to(self.device)
 
-            embeddings = self.model(images)
-            hard_pairs = self.miner_fn(embeddings, labels)
-            loss = self.loss_fn(embeddings, labels, hard_pairs)
-
             self.optimizer.zero_grad()
-            loss.backward()
+            with torch.amp.autocast("cuda", enabled=self.use_amp):
+                embeddings = self.model(images)
+                hard_pairs = self.miner_fn(embeddings, labels)
+                loss = self.loss_fn(embeddings, labels, hard_pairs)
+
+            self.scaler.scale(loss).backward()
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
-            self.optimizer.step()
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             total_loss += loss.item()
             n_batches += 1

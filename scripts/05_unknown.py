@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import Config
+from src.config import Config, load_config_overrides
 from src.unknown_detection import train_known_classes, evaluate_unknown_detection
 from src.utils import set_seed
 from src.visualization import (
@@ -55,16 +55,18 @@ def parse_args():
 def main():
     args = parse_args()
     config = Config()
+    config = load_config_overrides(config)
     set_seed(config.seed)
 
     print("Unknown Disease Detection — Subtask b")
-    print(f"Device: {config.device}")
+    print(f"Device: {config.device} | Backbone: {config.backbone}")
     print(f"Unknown class: {config.unknown_class}")
     print(f"Known classes ({len(config.get_known_classes())}): {config.get_known_classes()}")
 
     # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
     # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
-    eval_fold = 1
+    # Clamp to n_folds-1 for small-fold configs (e.g. fast-mode 2-fold).
+    eval_fold = min(1, config.n_folds - 1)
 
     # Resolve checkpoint path
     checkpoint_path = None

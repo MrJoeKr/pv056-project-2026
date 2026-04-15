@@ -4,21 +4,28 @@ import torch.nn.functional as F
 from torchvision import models
 
 
+_BACKBONES = {
+    "resnet18": (models.resnet18, models.ResNet18_Weights.DEFAULT, 512),
+    "resnet34": (models.resnet34, models.ResNet34_Weights.DEFAULT, 512),
+    "resnet50": (models.resnet50, models.ResNet50_Weights.DEFAULT, 2048),
+}
+
+
 class EmbeddingNet(nn.Module):
-    """ResNet-50 backbone with embedding head for metric learning."""
+    """ResNet backbone with embedding head for metric learning."""
 
-    def __init__(self, embedding_dim: int = 512, pretrained: bool = True):
+    def __init__(self, embedding_dim: int = 512, pretrained: bool = True, backbone: str = "resnet50"):
         super().__init__()
-        # Load pretrained ResNet-50
-        weights = models.ResNet50_Weights.DEFAULT if pretrained else None
-        backbone = models.resnet50(weights=weights)
+        if backbone not in _BACKBONES:
+            raise ValueError(f"Unknown backbone '{backbone}'. Supported: {list(_BACKBONES)}")
+        constructor, default_weights, feature_dim = _BACKBONES[backbone]
+        weights = default_weights if pretrained else None
+        net = constructor(weights=weights)
 
-        # Remove the final FC layer
-        self.backbone = nn.Sequential(*list(backbone.children())[:-1])  # Output: (B, 2048, 1, 1)
+        self.backbone = nn.Sequential(*list(net.children())[:-1])  # (B, feature_dim, 1, 1)
 
-        # Embedding head
         self.embedding_head = nn.Sequential(
-            nn.Linear(2048, 1024),
+            nn.Linear(feature_dim, 1024),
             nn.BatchNorm1d(1024),
             nn.ReLU(inplace=True),
             nn.Dropout(0.2),
@@ -26,6 +33,8 @@ class EmbeddingNet(nn.Module):
         )
 
         self.embedding_dim = embedding_dim
+        self.backbone_name = backbone
+        self.feature_dim = feature_dim
 
     def forward(self, x):
         """Extract L2-normalized embeddings."""
