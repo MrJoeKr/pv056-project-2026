@@ -83,21 +83,47 @@ def ensure_masks(samples, masks_dir: Path, model_name: str = "u2netp"):
         mask.save(dst)
 
 
+FILL_MODES = ("black", "random_color", "noise")
+
+
+def _fill_region(arr: np.ndarray, region: np.ndarray, fill: str, rng: np.random.Generator):
+    """Fill `arr[region]` in-place using one of the FILL_MODES."""
+    n = int(region.sum())
+    if n == 0:
+        return
+    if fill == "black":
+        arr[region] = 0
+    elif fill == "random_color":
+        color = rng.integers(0, 256, size=3, dtype=np.uint8)
+        arr[region] = color
+    elif fill == "noise":
+        arr[region] = rng.integers(0, 256, size=(n, 3), dtype=np.uint8)
+    else:
+        raise ValueError(f"unknown fill mode: {fill}")
+
+
 class MaskedDataset(Dataset):
     """PlantVillage samples with per-image masking mode applied before transform.
 
     mode:
       'none'       — return original image
-      'leaf'       — zero out background (keep only leaf)
-      'background' — zero out leaf (keep only background)
+      'leaf'       — replace background (keep only leaf)
+      'background' — replace leaf (keep only background)
+
+    fill controls how the masked-out region is filled: 'black', 'random_color', or 'noise'.
+    A per-sample RNG is seeded from (base_seed, idx) so results are reproducible.
     """
 
-    def __init__(self, samples, masks_dir: Path, transform, mode: str):
+    def __init__(self, samples, masks_dir: Path, transform, mode: str,
+                 fill: str = "black", seed: int = 0):
         assert mode in {"none", "leaf", "background"}
+        assert fill in FILL_MODES
         self.samples = samples
         self.masks_dir = masks_dir
         self.transform = transform
         self.mode = mode
+        self.fill = fill
+        self.seed = seed
 
     def __len__(self):
         return len(self.samples)
@@ -114,10 +140,9 @@ class MaskedDataset(Dataset):
                 mask = mask.resize(img.size, Image.NEAREST)
             arr = np.array(img)
             m = (np.array(mask) >= MASK_THRESHOLD)  # True where leaf is
-            if self.mode == "leaf":
-                arr[~m] = 0
-            else:  # background
-                arr[m] = 0
+            region = ~m if self.mode == "leaf" else m
+            rng = np.random.default_rng((self.seed, idx))
+            _fill_region(arr, region, self.fill, rng)
             img = Image.fromarray(arr)
 
         if self.transform:
@@ -125,8 +150,10 @@ class MaskedDataset(Dataset):
         return img, label
 
 
-def evaluate(model, samples, masks_dir, mode, proto_clf, config) -> tuple[float, np.ndarray]:
-    ds = MaskedDataset(samples, masks_dir, get_val_transform(config.img_size), mode)
+def evaluate(model, samples, masks_dir, mode, proto_clf, config, fill: str = "black",
+             seed: int = 0) -> tuple[float, np.ndarray]:
+    ds = MaskedDataset(samples, masks_dir, get_val_transform(config.img_size), mode,
+                       fill=fill, seed=seed)
     loader = DataLoader(ds, batch_size=config.batch_size, shuffle=False,
                         num_workers=config.num_workers, pin_memory=True)
     emb, labels = compute_all_embeddings(model, loader, config.device)
@@ -135,7 +162,8 @@ def evaluate(model, samples, masks_dir, mode, proto_clf, config) -> tuple[float,
     return f1_score(y_true, preds, average="macro"), f1_score(y_true, preds, average=None)
 
 
-def save_example_plot(samples, masks_dir, classes, save_path: Path, n: int = 4, seed: int = 0):
+def save_example_plot(samples, masks_dir, classes, save_path: Path, fill: str = "black",
+                      n: int = 4, seed: int = 0):
     """Side-by-side original / leaf-only / background-only for a few samples."""
     import matplotlib
     matplotlib.use("Agg")
@@ -154,12 +182,14 @@ def save_example_plot(samples, masks_dir, classes, save_path: Path, n: int = 4, 
         mask = np.array(Image.open(masks_dir / p.parent.name / (p.stem + ".png")).convert("L"))
         m = mask >= MASK_THRESHOLD
 
-        leaf = img.copy(); leaf[~m] = 0
-        bg = img.copy(); bg[m] = 0
+        leaf = img.copy()
+        _fill_region(leaf, ~m, fill, np.random.default_rng((seed, int(i), 0)))
+        bg = img.copy()
+        _fill_region(bg, m, fill, np.random.default_rng((seed, int(i), 1)))
 
         axes[row, 0].imshow(img); axes[row, 0].set_title(f"orig — {classes[label]}", fontsize=8)
-        axes[row, 1].imshow(leaf); axes[row, 1].set_title("leaf only", fontsize=8)
-        axes[row, 2].imshow(bg); axes[row, 2].set_title("background only", fontsize=8)
+        axes[row, 1].imshow(leaf); axes[row, 1].set_title(f"leaf only (fill={fill})", fontsize=8)
+        axes[row, 2].imshow(bg); axes[row, 2].set_title(f"background only (fill={fill})", fontsize=8)
         for ax in axes[row]:
             ax.axis("off")
 
@@ -176,6 +206,8 @@ def main():
     parser.add_argument("--max-per-class", type=int, default=None,
                         help="stratified subsample for val set (default: use full val fold)")
     parser.add_argument("--rembg-model", default="u2netp", help="rembg model (u2netp is lightweight, u2net is heavier)")
+    parser.add_argument("--fill", choices=FILL_MODES, default="black",
+                        help="how to fill the masked-out region (default: black)")
     args = parser.parse_args()
 
     config = Config()
@@ -236,10 +268,12 @@ def main():
     ensure_masks(val_samples, masks_dir, model_name=args.rembg_model)
 
     # Three evaluation modes
+    print(f"\nFill mode for masked region: {args.fill}")
     results = {}
     for mode in ("none", "leaf", "background"):
         print(f"\n-- mode: {mode} --")
-        f1m, f1_per = evaluate(model, val_samples, masks_dir, mode, proto_clf, config)
+        f1m, f1_per = evaluate(model, val_samples, masks_dir, mode, proto_clf, config,
+                               fill=args.fill, seed=config.seed)
         chance = 1.0 / len(config.classes)
         print(f"  F1 macro = {f1m:.4f}   (chance ≈ {chance:.4f})")
         results[mode] = (f1m, f1_per)
@@ -263,14 +297,16 @@ def main():
         "f1_background_only": results["background"][1],
     })
     df.loc[len(df)] = ["MACRO_AVERAGE", f1_orig, f1_leaf, f1_bg]
-    out_csv = config.tables_dir / f"shortcut_diagnostic_fold{args.fold}.csv"
+    suffix = f"fold{args.fold}_fill-{args.fill}"
+    out_csv = config.tables_dir / f"shortcut_diagnostic_{suffix}.csv"
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out_csv, index=False)
     print(f"Saved: {out_csv}")
 
     # Example plot
     save_example_plot(val_samples, masks_dir, config.classes,
-                      config.plots_dir / f"shortcut_diagnostic_examples_fold{args.fold}.png")
+                      config.plots_dir / f"shortcut_diagnostic_examples_{suffix}.png",
+                      fill=args.fill)
 
     print("\n=== Done ===")
 
