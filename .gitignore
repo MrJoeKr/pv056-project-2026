@@ -17,3 +17,6 @@ build/
 test_imports.py
 autoresearch/run.log
 autoresearch/results.tsv
+
+# Local-only working copy of the Overleaf report (see overleaf_report/CLAUDE.md)
+overleaf_report/
