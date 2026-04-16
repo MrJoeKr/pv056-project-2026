@@ -26,7 +26,7 @@ from optuna.pruners import MedianPruner
 from sklearn.metrics import f1_score
 from torch.utils.data import DataLoader
 
-from src.config import Config
+from src.config import Config, load_config_overrides
 from src.dataset import (
     PlantVillageDataset,
     create_samplers,
@@ -106,7 +106,7 @@ def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
     )
 
     # Model, loss, optimizer
-    model = EmbeddingNet(embedding_dim, base_config.pretrained)
+    model = EmbeddingNet(embedding_dim, base_config.pretrained, backbone=base_config.backbone)
     loss_fn, miner_fn = get_loss_and_miner(mining_strategy, margin)
 
     optimizer = torch.optim.Adam([
@@ -173,10 +173,11 @@ def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
 
 def main():
     config = Config()
+    config = load_config_overrides(config)
     set_seed(config.seed)
 
     print("HPO — Optuna Hyperparameter Optimization")
-    print(f"Device: {config.device}")
+    print(f"Device: {config.device} | Backbone: {config.backbone}")
     print(f"Trials: {config.hpo_n_trials}, Timeout: {config.hpo_timeout}s")
 
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)

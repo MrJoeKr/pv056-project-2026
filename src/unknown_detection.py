@@ -67,7 +67,7 @@ def train_known_classes(
     )
 
     # Model
-    model = EmbeddingNet(config.embedding_dim, config.pretrained)
+    model = EmbeddingNet(config.embedding_dim, config.pretrained, backbone=config.backbone)
 
     if checkpoint_path is not None:
         print(f"Loading model from {checkpoint_path} (skipping training)")
@@ -89,6 +89,7 @@ def train_known_classes(
         trainer = Trainer(
             model, loss_fn, miner_fn, optimizer, scheduler,
             device=config.device, patience=config.patience,
+            use_amp=config.use_amp,
         )
         trainer.fit(
             train_loader, val_loader,
@@ -139,7 +140,8 @@ def evaluate_unknown_detection(
         config.data_dir, config.classes, config.n_folds, config.seed,
         exclude_classes=[config.unknown_class],
     )
-    _, val_idx = folds[0]
+    eval_fold = min(1, config.n_folds - 1)
+    _, val_idx = folds[eval_fold]
 
     known_dataset = PlantVillageDataset(
         config.data_dir, config.classes,

@@ -1,6 +1,7 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import List, Optional
+import json
 import torch
 
 
@@ -80,6 +81,7 @@ class Config:
 
     # Device
     device: str = field(default=None)
+    use_amp: bool = False  # mixed-precision training (CUDA only; no-op on CPU)
 
     def __post_init__(self):
         if self.data_dir is None:
@@ -107,3 +109,36 @@ class Config:
     def get_known_classes(self) -> List[str]:
         """Classes for subtask b (excluding unknown_class)."""
         return [c for c in self.classes if c != self.unknown_class]
+
+
+def load_config_overrides(config: "Config") -> "Config":
+    """Apply overrides from `<tables_dir>/config_override.json` if it exists.
+
+    Used by Colab to swap in a fast runtime config (ResNet18, smaller images, AMP, fewer folds)
+    without changing script code. Only fields that exist on Config are applied; unknown keys are
+    warned about and ignored. Re-runs __post_init__-style derived fields that depend on overrides.
+    """
+    override_path = config.tables_dir / "config_override.json"
+    if not override_path.exists():
+        return config
+
+    with open(override_path) as f:
+        overrides = json.load(f)
+
+    valid_names = {f.name for f in fields(config)}
+    applied, unknown = {}, []
+    for key, value in overrides.items():
+        if key in valid_names:
+            setattr(config, key, value)
+            applied[key] = value
+        else:
+            unknown.append(key)
+
+    # Recompute derived samples_per_class if batch_size changed and user didn't pin it
+    if "batch_size" in applied and "samples_per_class" not in applied:
+        config.samples_per_class = max(4, config.batch_size // config.num_classes)
+
+    print(f"[config_override] Applied from {override_path.name}: {applied}")
+    if unknown:
+        print(f"[config_override] Ignored unknown keys: {unknown}")
+    return config

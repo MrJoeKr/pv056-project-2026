@@ -24,7 +24,7 @@ from sklearn.metrics import f1_score, classification_report
 from pytorch_grad_cam import GradCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
-from src.config import Config
+from src.config import Config, load_config_overrides
 from src.dataset import (
     PlantVillageDataset,
     get_val_transform,
@@ -103,10 +103,11 @@ def generate_gradcam(model, dataset, proto_clf, class_names, device, n_samples=6
 
 def main():
     config = Config()
+    config = load_config_overrides(config)
     set_seed(config.seed)
 
     print("Evaluation — Confusion Matrix, Grad-CAM, UMAP")
-    print(f"Device: {config.device}")
+    print(f"Device: {config.device} | Backbone: {config.backbone}")
 
     # Check for best HPO params
     hpo_params_path = config.tables_dir / "best_hpo_params.json"
@@ -122,8 +123,11 @@ def main():
         config.samples_per_class = best_params.get("samples_per_class", config.samples_per_class)
 
     # Load model
-    model = EmbeddingNet(config.embedding_dim, pretrained=False)
-    checkpoint_path = config.models_dir / "train" / "best_model_fold0.pt"
+    # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
+    # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
+    eval_fold = min(1, config.n_folds - 1)
+    model = EmbeddingNet(config.embedding_dim, pretrained=False, backbone=config.backbone)
+    checkpoint_path = config.models_dir / "train" / f"best_model_fold{eval_fold}.pt"
     if checkpoint_path.exists():
         load_checkpoint(checkpoint_path, model, device=config.device)
         print(f"Loaded checkpoint: {checkpoint_path}")
@@ -135,9 +139,9 @@ def main():
     model = model.to(config.device)
     model.eval()
 
-    # Get fold 0 validation set
+    # Get validation set for the eval fold
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)
-    train_idx, val_idx = folds[0]
+    train_idx, val_idx = folds[eval_fold]
 
     train_dataset = PlantVillageDataset(
         config.data_dir, config.classes,

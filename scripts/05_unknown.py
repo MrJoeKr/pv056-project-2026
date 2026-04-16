@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.config import Config
+from src.config import Config, load_config_overrides
 from src.unknown_detection import train_known_classes, evaluate_unknown_detection
 from src.utils import set_seed
 from src.visualization import (
@@ -55,23 +55,29 @@ def parse_args():
 def main():
     args = parse_args()
     config = Config()
+    config = load_config_overrides(config)
     set_seed(config.seed)
 
     print("Unknown Disease Detection — Subtask b")
-    print(f"Device: {config.device}")
+    print(f"Device: {config.device} | Backbone: {config.backbone}")
     print(f"Unknown class: {config.unknown_class}")
     print(f"Known classes ({len(config.get_known_classes())}): {config.get_known_classes()}")
+
+    # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
+    # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
+    # Clamp to n_folds-1 for small-fold configs (e.g. fast-mode 2-fold).
+    eval_fold = min(1, config.n_folds - 1)
 
     # Resolve checkpoint path
     checkpoint_path = None
     if args.skip_training:
-        checkpoint_path = args.checkpoint or config.models_dir / "unknown" / "best_model_fold0.pt"
+        checkpoint_path = args.checkpoint or config.models_dir / "unknown" / f"best_model_fold{eval_fold}.pt"
         print(f"\nSkipping training — loading checkpoint: {checkpoint_path}")
 
     # ── Train or load model ──
-    section = "Loading model" if checkpoint_path else "Training on known classes (fold 0)"
+    section = "Loading model" if checkpoint_path else f"Training on known classes (fold {eval_fold})"
     print(f"\n=== {section} ===")
-    model, proto_clf = train_known_classes(config, fold=0, checkpoint_path=checkpoint_path)
+    model, proto_clf = train_known_classes(config, fold=eval_fold, checkpoint_path=checkpoint_path)
 
     # ── Evaluate unknown detection ──
     print("\n=== Evaluating unknown detection ===")
