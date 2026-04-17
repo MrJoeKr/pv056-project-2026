@@ -86,6 +86,38 @@ def fit_prototypes(model, train_ds, config):
     return proto
 
 
+def compute_val_margins(model, val_ds, proto: PrototypeClassifier, config):
+    """For each val sample, return (correct, margin). Margin = dist_to_second_nearest - dist_to_nearest."""
+    loader = DataLoader(
+        val_ds, batch_size=config.batch_size, shuffle=False,
+        num_workers=config.num_workers, pin_memory=True,
+    )
+    emb, labels = compute_all_embeddings(model, loader, config.device)
+    dists = torch.cdist(emb, proto.prototypes)  # (N, num_classes)
+    sorted_dists, sorted_cls = dists.sort(dim=1)
+    nearest = sorted_cls[:, 0]
+    correct = (nearest == labels)
+    margins = sorted_dists[:, 1] - sorted_dists[:, 0]
+    return correct.numpy(), margins.numpy(), labels.numpy()
+
+
+def pick_confident_samples(correct, margins, labels, n_classes, n_samples):
+    """Pick up to n_samples val indices — most confident correctly classified, one per distinct class."""
+    order = np.argsort(-margins)  # desc by margin
+    picked, seen = [], set()
+    for i in order:
+        if not correct[i]:
+            continue
+        c = int(labels[i])
+        if c in seen:
+            continue
+        seen.add(c)
+        picked.append(int(i))
+        if len(picked) == n_samples:
+            break
+    return picked
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fold", type=int, default=1)
@@ -135,11 +167,18 @@ def main():
                             mode="leaf", fill=args.fill, config=config)
     leaf_proto = fit_prototypes(leaf_model, leaf_train, config)
 
-    # Same dataset indices for both models
-    indices = np.linspace(0, len(val_idx) - 1, args.n_samples, dtype=int).tolist()
-    titles = [config.classes[full_samples[val_idx[i]][1]] for i in indices]
-    print(f"\nSample indices: {indices}")
+    # Pick samples where the LEAF-ONLY model is most confidently correct,
+    # one per class — expected to yield sharp, leaf-localised CAMs for the
+    # leaf-only row. Baseline CAMs are computed on the same indices.
+    print("\n=== Selecting high-confidence samples (leaf-only margin) ===")
+    correct, margins, labels = compute_val_margins(leaf_model, leaf_val, leaf_proto, config)
+    indices = pick_confident_samples(correct, margins, labels,
+                                     n_classes=len(config.classes),
+                                     n_samples=args.n_samples)
+    titles = [config.classes[labels[i]] for i in indices]
+    print(f"Sample indices: {indices}")
     print(f"Classes:        {titles}")
+    print(f"Margins:        {[float(margins[i]) for i in indices]}")
 
     print("\n=== Grad-CAM: baseline ===")
     _, cam_baseline, _ = compute_gradcam_cams(
