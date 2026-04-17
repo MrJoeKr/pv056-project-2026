@@ -4,10 +4,10 @@
 Loads the best model from fold 0, evaluates on the validation set.
 
 Generates:
-  - results/plots/confusion_matrix.png
-  - results/plots/umap_embeddings.png
-  - results/plots/gradcam_samples.png
-  - results/plots/per_class_f1.png
+  - results/plots/evaluation/confusion_matrix.png
+  - results/plots/evaluation/umap_embeddings.png
+  - results/plots/evaluation/gradcam_samples.png
+  - results/plots/evaluation/per_class_f1.png
   - results/tables/results_summary.csv
 """
 
@@ -56,8 +56,12 @@ def main():
     config = load_config_overrides(config)
     set_seed(config.seed)
 
+    eval_plots_dir = config.plots_dir / "evaluation"
+    eval_plots_dir.mkdir(parents=True, exist_ok=True)
+
     print("Evaluation — Confusion Matrix, Grad-CAM, UMAP")
     print(f"Device: {config.device} | Backbone: {config.backbone}")
+    print(f"Plots dir: {eval_plots_dir}")
 
     # Check for best HPO params
     hpo_params_path = config.tables_dir / "best_hpo_params.json"
@@ -138,23 +142,23 @@ def main():
 
     # ── Confusion Matrix (R3a) ──
     plot_confusion_matrix(y_true, y_pred, config.classes,
-                          config.plots_dir / "confusion_matrix.png")
+                          eval_plots_dir / "confusion_matrix.png")
 
     # ── Per-class F1 ──
     plot_per_class_f1(f1_per_class.tolist(), config.classes,
-                      config.plots_dir / "per_class_f1.png")
+                      eval_plots_dir / "per_class_f1.png")
 
     # ── UMAP ──
     print("Generating UMAP visualization...")
     all_embeddings = torch.cat([train_embeddings, val_embeddings]).numpy()
     all_labels = torch.cat([train_labels, val_labels]).numpy()
     plot_umap_embeddings(all_embeddings, all_labels, config.classes,
-                         config.plots_dir / "umap_embeddings.png")
+                         eval_plots_dir / "umap_embeddings.png")
 
     # ── Grad-CAM (R3a) ──
     print("Generating Grad-CAM visualizations...")
     generate_gradcam(model, val_dataset, proto_clf, config.classes, config.device,
-                     n_samples=6, save_path=config.plots_dir / "gradcam_samples.png")
+                     n_samples=6, save_path=eval_plots_dir / "gradcam_samples.png")
 
     # ── Results summary ──
     results_df = pd.DataFrame({
