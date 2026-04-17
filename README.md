@@ -26,6 +26,10 @@ Plant disease classification using contrastive/triplet learning on the PlantVill
 
 Substantially above the 0.76 F1-macro baseline. The report covers the full breakdown, Grad-CAM analysis, and a background-shortcut ablation (leaf-masked vs. background-only).
 
+![UMAP of learned embeddings — coloured clusters are the 14 known classes; black ×s are the held-out unknown class (*Tomato Bacterial spot*), which drifts away from all known clusters.](assets/unknown_umap.png)
+
+> UMAP projection of the learned 512-D embeddings. Coloured clusters: 14 known classes. Black ×: held-out unknown class (*Tomato Bacterial spot*) — it lands in the gaps between known clusters, which is what makes Mahalanobis detection work.
+
 ## Approach
 
 - **Backbone**: ResNet-50 (pretrained ImageNet) with 512-dim embedding head + L2 normalization
