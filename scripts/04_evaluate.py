@@ -21,10 +21,9 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import f1_score, classification_report
-from pytorch_grad_cam import GradCAM
-from pytorch_grad_cam.utils.image import show_cam_on_image
 
 from src.config import Config, load_config_overrides
+from src.gradcam import compute_gradcam_cams
 from src.dataset import (
     PlantVillageDataset,
     get_val_transform,
@@ -43,60 +42,11 @@ from src.visualization import (
 
 def generate_gradcam(model, dataset, proto_clf, class_names, device, n_samples=6, save_path=None):
     """Generate Grad-CAM visualizations using negative prototype distance as target."""
-    # Get the last conv layer of the backbone
-    target_layer = None
-    for name, module in model.backbone.named_modules():
-        if isinstance(module, torch.nn.Conv2d):
-            target_layer = module
-
-    if target_layer is None:
-        print("Could not find target layer for Grad-CAM")
-        return
-
-    centroids = proto_clf.prototypes.to(device)  # (num_classes, embedding_dim)
-
-    class PrototypeDistanceTarget:
-        """Grad-CAM target: negative L2 distance to the predicted class centroid.
-
-        Maximising this scalar = minimising distance to the prototype, which is
-        exactly what the classifier optimises. Gradients therefore highlight the
-        regions that pull the embedding toward the correct class.
-        """
-        def __init__(self, label):
-            self.label = label
-
-        def __call__(self, embedding):
-            centroid = centroids[self.label]
-            return -torch.norm(embedding - centroid, dim=-1)
-
-    cam = GradCAM(model=model, target_layers=[target_layer])
-
-    images = []
-    cam_images = []
-    titles = []
-
-    indices = np.linspace(0, len(dataset) - 1, n_samples, dtype=int)
-
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
-
-    for idx in indices:
-        img_tensor, label = dataset[idx]
-        input_tensor = img_tensor.unsqueeze(0).to(device)
-
-        targets = [PrototypeDistanceTarget(label)]
-        grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-        grayscale_cam = grayscale_cam[0]
-
-        img_np = img_tensor.permute(1, 2, 0).numpy()
-        img_np = (img_np * std + mean).clip(0, 1)
-
-        cam_img = show_cam_on_image(img_np, grayscale_cam, use_rgb=True)
-
-        images.append(img_np)
-        cam_images.append(cam_img)
-        titles.append(class_names[label])
-
+    indices = np.linspace(0, len(dataset) - 1, n_samples, dtype=int).tolist()
+    images, cam_images, labels = compute_gradcam_cams(
+        model, dataset, proto_clf, device, indices,
+    )
+    titles = [class_names[label] for label in labels]
     if save_path:
         plot_gradcam(images, cam_images, titles, save_path)
 

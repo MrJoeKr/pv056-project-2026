@@ -229,6 +229,41 @@ def plot_umap_embeddings(embeddings: np.ndarray, labels: np.ndarray,
     print(f"Saved: {save_path}")
 
 
+def plot_gradcam_comparison(cam_rows: List[List], titles: List[str],
+                            row_labels: List[str], save_path: Path):
+    """Grid of Grad-CAM overlays, one row per model, one column per sample.
+
+    cam_rows[k] is a list of N CAM images (uint8, HxWx3) for model k.
+    titles[i] is the column title for sample i.
+    row_labels[k] is the row label for model k.
+    """
+    n_rows = len(cam_rows)
+    n_cols = len(cam_rows[0])
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 3))
+    if n_rows == 1:
+        axes = np.array([axes])
+    if n_cols == 1:
+        axes = axes.reshape(n_rows, 1)
+
+    for r in range(n_rows):
+        for c in range(n_cols):
+            ax = axes[r, c]
+            ax.imshow(cam_rows[r][c])
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+            if r == 0:
+                ax.set_title(titles[c], fontsize=9)
+        axes[r, 0].set_ylabel(row_labels[r], fontsize=11, rotation=90,
+                              labelpad=10)
+
+    plt.tight_layout()
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+
 def plot_gradcam(images: List, cam_images: List, titles: List[str], save_path: Path):
     """Grad-CAM visualization grid (R3a)."""
     n = len(images)
