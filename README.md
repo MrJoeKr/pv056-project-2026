@@ -2,12 +2,33 @@
 
 PV056 ML & DM Semestral Project (MUNI, 2026)
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MrJoeKr/pv056-project-2026/blob/main/colab.ipynb)
+![Python](https://img.shields.io/badge/python-3.12%2B-3776ab?logo=python&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.x-ee4c2c?logo=pytorch&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-12.6-76b900?logo=nvidia&logoColor=white)
+![Dataset: PlantVillage](https://img.shields.io/badge/dataset-PlantVillage-2e8b57)
+
 ## Overview
 
 Plant disease classification using contrastive/triplet learning on the PlantVillage dataset (20,638 images, 15 classes).
 
 - **Subtask a**: Supervised classification with triplet loss + 5-fold CV (target: F1macro > 0.76)
 - **Subtask b**: Unknown disease detection — exclude `Tomato_Bacterial_spot`, detect it as unknown via Mahalanobis distance thresholding
+
+## Results
+
+| Task | Metric | Value |
+|------|--------|-------|
+| Closed-set (5-fold CV) | F1-macro | **0.9985 ± 0.0005** |
+| Unknown detection | AUROC | **0.9933** |
+| Unknown detection | PR-AUC | 0.9899 |
+| Unknown detection | F1 @ τ=8.41 | 0.9505 |
+
+Substantially above the 0.76 F1-macro baseline. The report covers the full breakdown, Grad-CAM analysis, and a background-shortcut ablation (leaf-masked vs. background-only).
+
+![UMAP of learned embeddings — coloured clusters are the 14 known classes; black ×s are the held-out unknown class (*Tomato Bacterial spot*), which drifts away from all known clusters.](assets/unknown_umap.png)
+
+> UMAP projection of the learned 512-D embeddings. Coloured clusters: 14 known classes. Black ×: held-out unknown class (*Tomato Bacterial spot*) — it lands in the gaps between known clusters, which is what makes Mahalanobis detection work.
 
 ## Approach
 
@@ -93,3 +114,12 @@ PlantVillage subset — 15 classes:
 | Tomato mosaic virus | 373 |
 | Tomato healthy | 1,591 |
 | **Total** | **20,638** |
+
+## Authors
+
+Faculty of Informatics, Masaryk University — Brno, Czech Republic.
+
+- Jozef Kraus
+- Richard Schwarz
+- David Charvát
+- Matěj Kubík

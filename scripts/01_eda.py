@@ -2,10 +2,10 @@
 01_eda.py — Exploratory Data Analysis (R1a + R1b)
 
 Generates:
-  - results/plots/class_distribution.png
-  - results/plots/sample_images.png
-  - results/plots/outliers.png
-  - results/plots/pixel_histograms.png
+  - results/plots/eda/class_distribution.png
+  - results/plots/eda/sample_images.png
+  - results/plots/eda/outliers.png
+  - results/plots/eda/pixel_histograms.png
   - results/tables/class_counts.csv
 """
 
@@ -26,9 +26,12 @@ from src.visualization import (
 
 def main():
     config = Config()
+    eda_dir = config.plots_dir / "eda"
+    eda_dir.mkdir(parents=True, exist_ok=True)
+
     print(f"Data dir: {config.data_dir}")
     print(f"Classes: {config.num_classes}")
-    print(f"Plots dir: {config.plots_dir}")
+    print(f"Plots dir: {eda_dir}")
 
     # ── R1a: Class distribution ──
     print("\n=== R1a: Class Distribution ===")
@@ -44,7 +47,7 @@ def main():
     total = sum(class_counts.values())
     print(f"  Total: {total}")
 
-    plot_class_distribution(class_counts, config.plots_dir / "class_distribution.png")
+    plot_class_distribution(class_counts, eda_dir / "class_distribution.png")
 
     # Save as CSV
     df = pd.DataFrame(list(class_counts.items()), columns=["Class", "Count"])
@@ -55,7 +58,7 @@ def main():
     # ── Sample images ──
     print("\n=== Sample Images ===")
     plot_sample_images(config.data_dir, config.classes,
-                       config.plots_dir / "sample_images.png", n_samples=3)
+                       eda_dir / "sample_images.png", n_samples=3)
 
     # ── R1b: Outlier Detection ──
     print("\n=== R1b: Outlier Detection ===")
@@ -75,10 +78,10 @@ def main():
         for cls, cnt in sorted(outlier_counts.items()):
             print(f"  {cls}: {cnt} outliers")
 
-        plot_outlier_gallery(outlier_paths, config.plots_dir / "outliers.png")
+        plot_outlier_gallery(outlier_paths, eda_dir / "outliers.png")
 
     # Pixel histograms
-    plot_pixel_histograms(stats, config.plots_dir / "pixel_histograms.png")
+    plot_pixel_histograms(stats, eda_dir / "pixel_histograms.png")
 
     print("\n=== EDA Complete ===")
 
