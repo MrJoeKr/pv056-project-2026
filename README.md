@@ -2,6 +2,8 @@
 
 PV056 ML & DM Semestral Project (MUNI, 2026)
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MrJoeKr/pv056-project-2026/blob/main/colab.ipynb)
+
 ## Overview
 
 Plant disease classification using contrastive/triplet learning on the PlantVillage dataset (20,638 images, 15 classes).
