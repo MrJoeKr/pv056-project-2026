@@ -229,41 +229,6 @@ def plot_umap_embeddings(embeddings: np.ndarray, labels: np.ndarray,
     print(f"Saved: {save_path}")
 
 
-def plot_gradcam_comparison(cam_rows: List[List], titles: List[str],
-                            row_labels: List[str], save_path: Path):
-    """Grid of Grad-CAM overlays, one row per model, one column per sample.
-
-    cam_rows[k] is a list of N CAM images (uint8, HxWx3) for model k.
-    titles[i] is the column title for sample i.
-    row_labels[k] is the row label for model k.
-    """
-    n_rows = len(cam_rows)
-    n_cols = len(cam_rows[0])
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 3))
-    if n_rows == 1:
-        axes = np.array([axes])
-    if n_cols == 1:
-        axes = axes.reshape(n_rows, 1)
-
-    for r in range(n_rows):
-        for c in range(n_cols):
-            ax = axes[r, c]
-            ax.imshow(cam_rows[r][c])
-            ax.set_xticks([])
-            ax.set_yticks([])
-            for spine in ax.spines.values():
-                spine.set_visible(False)
-            if r == 0:
-                ax.set_title(titles[c], fontsize=9)
-        axes[r, 0].set_ylabel(row_labels[r], fontsize=11, rotation=90,
-                              labelpad=10)
-
-    plt.tight_layout()
-    fig.savefig(save_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"Saved: {save_path}")
-
-
 def plot_gradcam(images: List, cam_images: List, titles: List[str], save_path: Path):
     """Grad-CAM visualization grid (R3a)."""
     n = len(images)
@@ -455,6 +420,166 @@ def plot_hpo_history(study, save_path: Path):
     ax2.set_xlim(0, 1)
 
     plt.tight_layout()
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+
+# ──────────────────── Outlier Detection Plots ────────────────────
+
+
+
+def plot_distance_distribution(
+    distances: np.ndarray, threshold: float, save_path: Path, title: str
+):
+    """Histogram of Mahalanobis distances with outlier threshold marker."""
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.hist(distances, bins=80, color="steelblue", alpha=0.8)
+    ax.axvline(
+        threshold, color="red", linestyle="--", linewidth=1.5,
+        label=f"Threshold = {threshold:.2f}",
+    )
+    ax.set_xlabel("Mahalanobis Distance")
+    ax.set_ylabel("Number of Images")
+    ax.set_title(title)
+    ax.legend()
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+
+def plot_per_class_outlier_counts(per_class_counts: dict, save_path: Path):
+    """Bar chart of per-class outlier counts."""
+    def _shorten(name):
+        return (
+            name.replace("Tomato_", "T_")
+                .replace("Potato___", "Pt_")
+                .replace("Pepper__bell___", "P_")
+                .replace("Spider_mites_Two_spotted_spider_mite", "Spider_mites")
+        )
+
+    classes = list(per_class_counts.keys())
+    counts = list(per_class_counts.values())
+    short = [_shorten(c) for c in classes]
+
+    fig, ax = plt.subplots(figsize=(13, 5))
+    ax.bar(range(len(classes)), counts, color="coral")
+    ax.set_xticks(range(len(classes)))
+    ax.set_xticklabels(short, rotation=45, ha="right", fontsize=9)
+    ax.set_ylabel("Number of Outliers")
+    ax.set_title("Per-Class Outlier Count (Mahalanobis, per-class detection)")
+    for i, c in enumerate(counts):
+        ax.text(i, c + 0.2, str(c), ha="center", va="bottom", fontsize=8)
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+def plot_umap_outliers(
+    embeddings: np.ndarray,
+    labels: np.ndarray,
+    is_outlier: np.ndarray,
+    class_names: list,
+    save_path: Path,
+):
+    """Plot UMAP where detected outliers are highlighted with a red border."""
+    from umap import UMAP
+
+    reducer = UMAP(n_components=2, random_state=42, n_neighbors=15, min_dist=0.1)
+    coords = np.asarray(reducer.fit_transform(embeddings))
+
+    outlier_mask = np.asarray(is_outlier, dtype=bool)
+    unique_labels = sorted(np.unique(labels))
+    palette = sns.color_palette("husl", len(unique_labels))
+
+    fig, ax = plt.subplots(figsize=(12, 10))
+
+    for i, label in enumerate(unique_labels):
+        class_mask = labels == label
+        inlier_mask = class_mask & (~outlier_mask)
+        class_outlier_mask = class_mask & outlier_mask
+
+        name = class_names[label] if label < len(class_names) else f"Class {label}"
+        short = name.replace("__", "_")[:20]
+        color = palette[i]
+
+        if np.any(inlier_mask):
+            ax.scatter(
+                coords[inlier_mask, 0],
+                coords[inlier_mask, 1],
+                c=[color],
+                label=short,
+                alpha=0.5,
+                s=10,
+                linewidths=0,
+            )
+
+        if np.any(class_outlier_mask):
+            ax.scatter(
+                coords[class_outlier_mask, 0],
+                coords[class_outlier_mask, 1],
+                c=[color],
+                alpha=0.95,
+                s=36,
+                edgecolors="red",
+                linewidths=1.4,
+                zorder=5,
+            )
+
+    ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left", fontsize=8, markerscale=3)
+    ax.set_title("UMAP Embeddings with Detected Outliers")
+    ax.set_xlabel("UMAP 1")
+    ax.set_ylabel("UMAP 2")
+
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved: {save_path}")
+
+def plot_outlier_gallery_comparison(
+    normal_paths: List[str],
+    outlier_paths: List[str],
+    save_path: Path,
+    max_normal_images: int = 10,
+    max_outlier_images: Optional[int] = None,
+    title: Optional[str] = None,
+):
+    """Gallery with normal examples first, followed by detected outliers (R1b)."""
+    normal_examples = normal_paths[:max_normal_images]
+    outlier_examples = outlier_paths if max_outlier_images is None else outlier_paths[:max_outlier_images]
+    gallery_paths = normal_examples + outlier_examples
+
+    if len(gallery_paths) == 0:
+        print("No images to display.")
+        return
+
+    cols = min(5, len(gallery_paths))
+    rows = (len(gallery_paths) + cols - 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
+    axes = np.atleast_1d(axes).flatten()
+
+    n_normal = len(normal_examples)
+    for i, ax in enumerate(axes):
+        if i < len(gallery_paths):
+            img_path = gallery_paths[i]
+            img = Image.open(img_path).convert("RGB")
+            ax.imshow(img)
+            prefix = "Normal" if i < n_normal else "Outlier"
+            name = Path(img_path).stem[:20]
+            ax.set_title(f"{prefix}: {name}", fontsize=7)
+        ax.axis("off")
+
+    title_prefix = title if title is not None else "Detected Outliers"
+    plt.suptitle(
+        f"{title_prefix} (normal={len(normal_examples)}, outliers={len(outlier_examples)})",
+        fontsize=14,
+    )
+    plt.tight_layout()
+    save_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
     print(f"Saved: {save_path}")
