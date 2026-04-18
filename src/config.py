@@ -85,8 +85,6 @@ class Config:
     use_amp: bool = False  # mixed-precision training (CUDA only; no-op on CPU)
 
     outlier_detection: str = "knn_distance"
-    outlier_percentile: float = 99.0
-    dbscan_eps_scale: float = 1.25  # multiply auto-estimated eps; >1.0 = less aggressive
 
     def __post_init__(self):
         if self.data_dir is None:
