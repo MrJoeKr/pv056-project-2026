@@ -8,6 +8,7 @@ Results are saved to:
 
 import os
 import sys
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from pathlib import Path
 from datetime import datetime
 from tqdm import tqdm
@@ -15,8 +16,10 @@ import cv2
 import numpy as np
 from rembg import remove
 import gc
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
+
+from src.visualization import plot_preprocessing_comparison
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -43,71 +46,6 @@ def setup_output_dirs(config: Config):
     preprocessed_data_dir.mkdir(parents=True, exist_ok=True)
 
     return sequential_dir, preprocessed_data_dir
-
-
-def apply_histogram_equalization(image: np.ndarray) -> np.ndarray:
-    """Apply histogram equalization to an RGB image.
-
-    Args:
-        image: RGB image as numpy array (H, W, 3)
-
-    Returns:
-        Histogram equalized image
-    """
-    # Convert RGB to LAB color space
-    lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-
-    # Split channels
-    l, a, b = cv2.split(lab)
-
-    # Apply CLAHE (Contrast Limited Adaptive Histogram Equalization) to L channel
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    l_clahe = clahe.apply(l)
-
-    # Merge channels back
-    lab_clahe = cv2.merge([l_clahe, a, b])
-
-    # Convert back to RGB
-    result = cv2.cvtColor(lab_clahe, cv2.COLOR_LAB2RGB)
-
-    return result
-
-
-def apply_shadow_correction_lab_gaussian(
-    image: np.ndarray, apply_clahe: bool = False
-) -> np.ndarray:
-    """Apply shadow correction using LAB and large Gaussian blur normalization.
-
-    1. Convert RGB to LAB.
-    2. Extract L channel.
-    3. Estimate shading with a large Gaussian blur.
-    4. Correct L channel by division and scaling by mean brightness.
-    5. Optional mild CLAHE on corrected L.
-    6. Merge back and convert to RGB.
-    """
-    lab = cv2.cvtColor(image, cv2.COLOR_RGB2LAB)
-    l, a, b = cv2.split(lab)
-    l_float = l.astype(np.float32)
-
-    # Large Gaussian kernel (approx. 1/3 of image size)
-    # This captures the illumination gradient while ignoring fine details
-    kernel_size = (image.shape[0] // 3) | 1
-    shading_est = cv2.GaussianBlur(l_float, (kernel_size, kernel_size), 0)
-
-    # Normalize: (Original / Shading) * Target Brightness
-    l_mean = np.mean(l_float)
-    l_corr = (l_float / (shading_est + 1e-6)) * l_mean
-
-    # Clip to valid range
-    l_final = np.clip(l_corr, 0, 255).astype(np.uint8)
-
-    # Optional mild CLAHE to recover local contrast
-    if apply_clahe:
-        clahe = cv2.createCLAHE(clipLimit=1.2, tileGridSize=(8, 8))
-        l_final = clahe.apply(l_final)
-
-    result = cv2.cvtColor(cv2.merge([l_final, a, b]), cv2.COLOR_LAB2RGB)
-    return result
 
 
 def apply_background_removal(
@@ -155,72 +93,6 @@ def apply_background_removal(
     return masked_foreground, mask
 
 
-def create_sequential_composite(
-    original: np.ndarray, shadow_corr: np.ndarray, masked: np.ndarray, final: np.ndarray
-) -> np.ndarray:
-    """Create a composite image showing 4 different processing variants.
-
-    Order:
-    1. Original
-    2. Shadow Corrected -> BG Removal -> CLAHE (Current best guess)
-    3. BG Removal -> CLAHE (No Shadow Correction)
-    4. CLAHE -> BG Removal (Equalize first to boost edges)
-    """
-    return np.vstack([original, shadow_corr, masked, final])
-
-
-def apply_shadow_correction_hsv(image: np.ndarray) -> np.ndarray:
-    """Apply shadow correction by normalizing the V channel in HSV space.
-
-    1. Convert to HSV.
-    2. Estimate background illumination via large Gaussian blur on V.
-    3. Normalize V channel: V_corr = (V / (Blur + epsilon)) * Mean(V).
-    4. Recombine and convert back to RGB.
-    """
-    hsv = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-    h, s, v = cv2.split(hsv)
-    v_float = v.astype(np.float32)
-
-    # Estimate background illumination
-    kernel_size = (image.shape[0] // 3) | 1
-    v_blur = cv2.GaussianBlur(v_float, (kernel_size, kernel_size), 0)
-
-    # Avoid division by zero
-    v_mean = np.mean(v_float)
-    v_corr = (v_float / (v_blur + 1e-6)) * v_mean
-
-    # Clip and recombine
-    v_final = np.clip(v_corr, 0, 255).astype(np.uint8)
-    result = cv2.cvtColor(cv2.merge([h, s, v_final]), cv2.COLOR_HSV2RGB)
-    return result
-
-
-def add_label_to_image(image: np.ndarray, text: str) -> np.ndarray:
-    """Add a text label to the top-left of the image."""
-    img_copy = image.copy()
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 0.6
-    thickness = 2
-    color = (255, 255, 255)  # White
-    bg_color = (0, 0, 0)  # Black
-
-    # Get text size
-    (text_width, text_height), baseline = cv2.getTextSize(
-        text, font, font_scale, thickness
-    )
-
-    # Add background rectangle for readability
-    cv2.rectangle(
-        img_copy, (5, 5), (10 + text_width, 10 + text_height + baseline), bg_color, -1
-    )
-    # Add text
-    cv2.putText(
-        img_copy, text, (7, 10 + text_height), font, font_scale, color, thickness
-    )
-
-    return img_copy
-
-
 def process_single_image(img_info):
     """Worker function to process a single image.
 
@@ -260,13 +132,11 @@ def process_single_image(img_info):
         cv2.imwrite(str(processed_out_path), cv2.cvtColor(final_v6, cv2.COLOR_RGB2BGR))
 
         if save_composite:
-            # Add labels
-            img_orig = add_label_to_image(original_rgb, "Original")
-            img_full_pipeline = add_label_to_image(final_v6, "Full (Guided + Stretch)")
-            composite = np.vstack([img_orig, img_full_pipeline])
-            out_path = output_class_dir / f"compare_{img_name}"
-            cv2.imwrite(str(out_path), cv2.cvtColor(composite, cv2.COLOR_RGB2BGR))
-            del composite
+            plot_preprocessing_comparison(
+                original_rgb,
+                final_v6,
+                output_class_dir / f"comparison_{img_name}",
+            )
 
         # Explicitly delete large numpy arrays to free memory early
         del image_bgr, original_rgb, shadow_corrected, final_v6_base, mask_v6, final_v6

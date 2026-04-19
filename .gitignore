@@ -1,5 +1,6 @@
 data/
 results/*
+experiments/*
 !results/README.md
 __pycache__/
 *.pyc

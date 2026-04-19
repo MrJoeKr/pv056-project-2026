@@ -101,11 +101,17 @@ def main():
         config.data_dir, config.classes,
         transform=get_val_transform(config.img_size),
         indices=train_idx,
+        preprocessed_data_dir=config.preprocessed_data_dir,
+        apply_preprocessing=config.apply_bg_removal,
+        use_preprocessed_cache=config.use_preprocessed_cache,
     )
     val_dataset = PlantVillageDataset(
         config.data_dir, config.classes,
         transform=get_val_transform(config.img_size),
         indices=val_idx,
+        preprocessed_data_dir=config.preprocessed_data_dir,
+        apply_preprocessing=config.apply_bg_removal,
+        use_preprocessed_cache=config.use_preprocessed_cache,
     )
 
     train_loader = DataLoader(
