@@ -13,3 +13,4 @@ tqdm>=4.65.0
 pandas>=2.0.0
 mediapipe>=0.10.0
 opencv-python>=4.5.0
+rembg>=2.0.0
