@@ -11,6 +11,8 @@ from torchvision import transforms
 from sklearn.model_selection import StratifiedKFold
 from pytorch_metric_learning.samplers import MPerClassSampler
 
+from src.preprocessing_bg_removal import PreprocessingBgRemoval
+
 
 class PlantVillageDataset(Dataset):
     """PlantVillage dataset for plant disease classification."""
