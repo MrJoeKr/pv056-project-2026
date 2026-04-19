@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 from rembg import remove, new_session
 
+
 class PreprocessingBgRemoval:
     """Torchvision-compatible transform that applies the full preprocessing pipeline.
 
@@ -19,7 +20,7 @@ class PreprocessingBgRemoval:
     """
 
     def __call__(self, img: Image.Image) -> Image.Image:
-        print(f"[Preprocessing] Processing image of size {img.size}") # TEMP
+        print(f"[Preprocessing] Processing image of size {img.size}")  # TEMP
         rgb = np.array(img)  # PIL RGB → numpy RGB
         mask = _get_foreground_mask(rgb)
         mask_bool = mask > 0
@@ -38,9 +39,6 @@ class PreprocessingBgRemoval:
         return Image.fromarray(cv2.cvtColor(cv2.merge([l, a, b]), cv2.COLOR_LAB2RGB))
 
 
-# ── Preprocessing functions ───────────────────────────────────────────────────
-# Shared between 07_preprocessing.py and dataset transforms.
-
 _session = None
 
 
@@ -50,7 +48,7 @@ def get_session():
     if _session is None:
         _session = new_session(
             "u2netp",
-            providers=['CoreMLExecutionProvider', 'CPUExecutionProvider'],
+            providers=["CoreMLExecutionProvider", "CPUExecutionProvider"],
         )
     return _session
 
@@ -69,9 +67,9 @@ def _shadow_correct_l(l: np.ndarray) -> np.ndarray:
         guide=l_float, src=l_float, radius=radius, eps=0.05
     )
     ambient = np.mean(illum_est)
-    return np.clip(
-        (l_float / (illum_est + 0.1)) * ambient * 255.0, 0, 255
-    ).astype(np.uint8)
+    return np.clip((l_float / (illum_est + 0.1)) * ambient * 255.0, 0, 255).astype(
+        np.uint8
+    )
 
 
 def _stretch_l(l: np.ndarray, mask_bool: np.ndarray) -> np.ndarray:
