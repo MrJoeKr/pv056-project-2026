@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Dict, List, Optional
 
+import cv2
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -116,6 +117,45 @@ def plot_pixel_histograms(stats: Dict, save_path: Path):
     plt.close(fig)
     print(f"Saved: {save_path}")
 
+# ──────────────────── Preprocessing Plots ────────────────────
+
+def add_label_to_image(image: np.ndarray, text: str) -> np.ndarray:
+    """Add a text label to the top-left of the image."""
+    img_copy = image.copy()
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = 0.6
+    thickness = 2
+    color = (255, 255, 255)  # White
+    bg_color = (0, 0, 0)  # Black
+
+    # Get text size
+    (text_width, text_height), baseline = cv2.getTextSize(
+        text, font, font_scale, thickness
+    )
+
+    # Add background rectangle for readability
+    cv2.rectangle(
+        img_copy, (5, 5), (10 + text_width, 10 + text_height + baseline), bg_color, -1
+    )
+    # Add text
+    cv2.putText(
+        img_copy, text, (7, 10 + text_height), font, font_scale, color, thickness
+    )
+
+    return img_copy
+
+def plot_preprocessing_comparison(original_rgb: np.ndarray, final_v6: np.ndarray, out_path: Path):
+    img_orig = add_label_to_image(original_rgb, "Original")
+    img_full_pipeline = add_label_to_image(final_v6, "Preprocessed")
+    composite = np.vstack([img_orig, img_full_pipeline])
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(str(out_path), cv2.cvtColor(composite, cv2.COLOR_RGB2BGR))
+    del composite
+
+def plot_preprocessing_comparison_from_files(original_path: Path, final_path: Path, out_path: Path):
+    original_rgb = cv2.cvtColor(cv2.imread(str(original_path)), cv2.COLOR_BGR2RGB)
+    final_v6 = cv2.cvtColor(cv2.imread(str(final_path)), cv2.COLOR_BGR2RGB)
+    plot_preprocessing_comparison(original_rgb, final_v6, out_path)
 
 # ──────────────────── Training Plots ────────────────────
 

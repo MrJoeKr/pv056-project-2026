@@ -4,7 +4,6 @@
 Generates:
   - results/plots/eda/class_distribution.png
   - results/plots/eda/sample_images.png
-  - results/plots/eda/outliers.png
   - results/plots/eda/pixel_histograms.png
   - results/tables/class_counts.csv
 """
@@ -15,11 +14,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pandas as pd
 from src.config import Config
-from src.outlier_detection import compute_pixel_statistics, detect_outliers_zscore
+from src.outlier_detection import compute_pixel_statistics
 from src.visualization import (
     plot_class_distribution,
     plot_sample_images,
-    plot_outlier_gallery,
     plot_pixel_histograms,
 )
 
@@ -60,25 +58,7 @@ def main():
     plot_sample_images(config.data_dir, config.classes,
                        eda_dir / "sample_images.png", n_samples=3)
 
-    # ── R1b: Outlier Detection ──
-    print("\n=== R1b: Outlier Detection ===")
     stats = compute_pixel_statistics(config.data_dir, config.classes)
-    print(f"Computed statistics for {len(stats['paths'])} images")
-
-    outlier_indices, details = detect_outliers_zscore(stats, threshold=3.0)
-    print(f"Detected {len(outlier_indices)} outliers (z-score > 3.0)")
-
-    if outlier_indices:
-        outlier_paths = [stats["paths"][i] for i in outlier_indices]
-        outlier_classes = [stats["labels"][i] for i in outlier_indices]
-
-        # Print outlier distribution
-        from collections import Counter
-        outlier_counts = Counter(outlier_classes)
-        for cls, cnt in sorted(outlier_counts.items()):
-            print(f"  {cls}: {cnt} outliers")
-
-        plot_outlier_gallery(outlier_paths, eda_dir / "outliers.png")
 
     # Pixel histograms
     plot_pixel_histograms(stats, eda_dir / "pixel_histograms.png")
