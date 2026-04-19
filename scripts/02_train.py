@@ -45,11 +45,17 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
         config.data_dir, config.classes,
         transform=get_train_transform(config.img_size),
         indices=train_idx,
+        preprocessed_data_dir=config.preprocessed_data_dir,
+        apply_preprocessing=config.apply_bg_removal,
+        use_preprocessed_cache=config.use_preprocessed_cache,
     )
     val_dataset = PlantVillageDataset(
         config.data_dir, config.classes,
         transform=get_val_transform(config.img_size),
         indices=val_idx,
+        preprocessed_data_dir=config.preprocessed_data_dir,
+        apply_preprocessing=config.apply_bg_removal,
+        use_preprocessed_cache=config.use_preprocessed_cache,
     )
     print(f"  Train: {len(train_dataset)} | Val: {len(val_dataset)}")
 
@@ -72,6 +78,9 @@ def train_fold(config: Config, fold: int, train_idx, val_idx):
             config.data_dir, config.classes,
             transform=get_val_transform(config.img_size),
             indices=train_idx,
+            preprocessed_data_dir=config.preprocessed_data_dir,
+            apply_preprocessing=config.apply_bg_removal,
+            use_preprocessed_cache=config.use_preprocessed_cache,
         ),
         batch_size=config.batch_size,
         shuffle=False, num_workers=config.num_workers, pin_memory=True,

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field, fields
+import os
 from pathlib import Path
 from typing import List, Optional
 import json
@@ -10,8 +11,10 @@ class Config:
     # Paths
     project_root: Path = Path(__file__).resolve().parent.parent
     data_dir: Path = field(default=None)
+    preprocessed_data_dir: Path = field(default=None)
     results_dir: Path = field(default=None)
     plots_dir: Path = field(default=None)
+    images_dir: Path = field(default=None)
     models_dir: Path = field(default=None)
     logs_dir: Path = field(default=None)
     tables_dir: Path = field(default=None)
@@ -36,12 +39,14 @@ class Config:
     ])
     unknown_class: str = "Tomato_Bacterial_spot"
     img_size: int = 224
-    num_workers: int = 4
+    num_workers: Optional[int] = None
+    apply_bg_removal: bool = True
+    use_preprocessed_cache: bool = True  # skip preprocessing if cached file exists
 
     # Model
     # HPO Run 2 best (trial 24, 2026-03-29): 512  |  previous (Run 1 best, used for training): 256
     embedding_dim: int = 512
-    backbone: str = "resnet50"
+    backbone: str = "resnet50" # efficientnet_v2_s, resnet50
     pretrained: bool = True
 
     # Training
@@ -83,13 +88,19 @@ class Config:
     device: str = field(default=None)
     use_amp: bool = False  # mixed-precision training (CUDA only; no-op on CPU)
 
+    outlier_detection: str = "knn_distance"
+
     def __post_init__(self):
         if self.data_dir is None:
             self.data_dir = self.project_root / "data" / "PlantVillage"
+        if self.preprocessed_data_dir is None:
+            self.preprocessed_data_dir = self.project_root / "data" / "PlantVillage_preprocessed"
         if self.results_dir is None:
             self.results_dir = self.project_root / "results"
         if self.plots_dir is None:
             self.plots_dir = self.results_dir / "plots"
+        if self.images_dir is None:
+            self.images_dir = self.project_root / "images"
         if self.models_dir is None:
             self.models_dir = self.results_dir / "models"
         if self.logs_dir is None:
@@ -97,7 +108,11 @@ class Config:
         if self.tables_dir is None:
             self.tables_dir = self.results_dir / "tables"
         if self.device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            self.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
+
+        if self.num_workers is None:
+            cpu_count = os.cpu_count() or 8
+            self.num_workers = max(2, min(12, cpu_count - 2))
         
         if self.samples_per_class is None:
             self.samples_per_class = max(4, self.batch_size // self.num_classes)

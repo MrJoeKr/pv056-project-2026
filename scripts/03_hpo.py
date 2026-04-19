@@ -73,6 +73,9 @@ def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
         base_config.data_dir, base_config.classes,
         transform=get_train_transform(base_config.img_size),
         indices=train_idx,
+        preprocessed_data_dir=base_config.preprocessed_data_dir,
+        apply_preprocessing=base_config.apply_bg_removal,
+        use_preprocessed_cache=base_config.use_preprocessed_cache,
     )
 
     # Samplers and loaders
@@ -91,6 +94,9 @@ def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
             base_config.data_dir, base_config.classes,
             transform=get_val_transform(base_config.img_size),
             indices=val_subset_idx,
+            preprocessed_data_dir=base_config.preprocessed_data_dir,
+            apply_preprocessing=base_config.apply_bg_removal,
+            use_preprocessed_cache=base_config.use_preprocessed_cache,
         ),
         batch_size=batch_size,
         shuffle=False, num_workers=base_config.num_workers, pin_memory=True,
@@ -100,6 +106,9 @@ def objective(trial: optuna.Trial, base_config: Config, folds, full_labels):
             base_config.data_dir, base_config.classes,
             transform=get_val_transform(base_config.img_size),
             indices=proto_idx,
+            preprocessed_data_dir=base_config.preprocessed_data_dir,
+            apply_preprocessing=base_config.apply_bg_removal,
+            use_preprocessed_cache=base_config.use_preprocessed_cache,
         ),
         batch_size=batch_size,
         shuffle=False, num_workers=base_config.num_workers, pin_memory=True,
@@ -183,7 +192,12 @@ def main():
     folds = get_stratified_folds(config.data_dir, config.classes, config.n_folds, config.seed)
 
     # Build once for stratified subset indexing in objective
-    full_dataset = PlantVillageDataset(config.data_dir, config.classes)
+    full_dataset = PlantVillageDataset(
+        config.data_dir, config.classes,
+        preprocessed_data_dir=config.preprocessed_data_dir,
+        apply_preprocessing=config.apply_bg_removal,
+        use_preprocessed_cache=config.use_preprocessed_cache,
+    )
     full_labels = np.array(full_dataset.labels)
 
     study = optuna.create_study(

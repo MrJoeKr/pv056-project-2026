@@ -43,6 +43,50 @@ def load_checkpoint(path: Path, model, optimizer=None, device="cpu"):
     return checkpoint
 
 
+def save_embeddings_checkpoint(
+    out_path: Path,
+    embeddings: np.ndarray,
+    labels: np.ndarray,
+    paths: list,
+    idx_to_class: dict,
+    config,
+    source_checkpoint: Path,
+) -> Path:
+    """Save extracted embeddings so outlier experiments are reproducible and reusable."""
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    payload = {
+        "embeddings": torch.from_numpy(embeddings).float(),
+        "labels": torch.from_numpy(labels).long(),
+        "paths": paths,
+        "idx_to_class": idx_to_class,
+        "source_model_checkpoint": str(source_checkpoint),
+        "config": {
+            "backbone": config.backbone,
+            "embedding_dim": config.embedding_dim,
+            "img_size": config.img_size,
+            "classes": config.classes,
+        },
+    }
+    torch.save(payload, out_path)
+    return out_path
+
+
+def load_embeddings_checkpoint(path: Path):
+    """Load embeddings checkpoint saved by save_embeddings_checkpoint.
+
+    Returns:
+        embeddings_np: numpy array of shape (N, D)
+        labels_np: numpy array of shape (N,)
+        paths: list of image paths
+        idx_to_class: dict mapping class index -> class name
+    """
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    embeddings_np = payload["embeddings"].cpu().numpy()
+    labels_np = payload["labels"].cpu().numpy()
+    return embeddings_np, labels_np, payload["paths"], payload["idx_to_class"]
+
+
 @torch.no_grad()
 def compute_all_embeddings(model, dataloader, device):
     """Compute embeddings for all samples in a dataloader.

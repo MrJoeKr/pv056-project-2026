@@ -5,11 +5,11 @@ Excludes Tomato_Bacterial_spot, retrains on 14 known classes,
 evaluates with Mahalanobis distance thresholding.
 
 Generates:
-  - results/plots/unknown_distance_histogram.png
-  - results/plots/unknown_roc_curve.png
-  - results/plots/unknown_confusion_matrix.png
-  - results/plots/unknown_umap_known_only.png
-  - results/plots/unknown_umap.png
+  - results/plots/unknown/unknown_distance_histogram.png
+  - results/plots/unknown/unknown_roc_curve.png
+  - results/plots/unknown/unknown_confusion_matrix.png
+  - results/plots/unknown/unknown_umap_known_only.png
+  - results/plots/unknown/unknown_umap.png
   - results/tables/unknown_detection_results.csv
 
 Usage:
@@ -58,10 +58,14 @@ def main():
     config = load_config_overrides(config)
     set_seed(config.seed)
 
+    unknown_plots_dir = config.plots_dir / "unknown"
+    unknown_plots_dir.mkdir(parents=True, exist_ok=True)
+
     print("Unknown Disease Detection — Subtask b")
     print(f"Device: {config.device} | Backbone: {config.backbone}")
     print(f"Unknown class: {config.unknown_class}")
     print(f"Known classes ({len(config.get_known_classes())}): {config.get_known_classes()}")
+    print(f"Plots dir: {unknown_plots_dir}")
 
     # Use fold 1 (not fold 0) — HPO was tuned on fold 0's validation set,
     # so reporting on fold 0 would have optimistic bias from hyperparameter selection.
@@ -108,25 +112,25 @@ def main():
         results["known_distances"],
         results["unknown_distances"],
         results["optimal_threshold"],
-        config.plots_dir / "unknown_distance_histogram.png",
+        unknown_plots_dir / "unknown_distance_histogram.png",
     )
 
     plot_roc_curve(
         results["fpr"], results["tpr"], results["auroc"],
-        config.plots_dir / "unknown_roc_curve.png",
+        unknown_plots_dir / "unknown_roc_curve.png",
     )
 
     plot_unknown_confusion_matrix(
         results["y_true"].astype(int),
         results["y_pred"],
-        config.plots_dir / "unknown_confusion_matrix.png",
+        unknown_plots_dir / "unknown_confusion_matrix.png",
     )
 
     plot_umap_embeddings(
         results["known_embeddings"],
         results["known_class_labels"],
         config.get_known_classes(),
-        config.plots_dir / "unknown_umap_known_only.png",
+        unknown_plots_dir / "unknown_umap_known_only.png",
     )
 
     plot_umap_unknown(
@@ -134,7 +138,7 @@ def main():
         results["known_class_labels"],
         results["unknown_embeddings"],
         config.get_known_classes(),
-        config.plots_dir / "unknown_umap.png",
+        unknown_plots_dir / "unknown_umap.png",
     )
 
     # ── Save results ──
