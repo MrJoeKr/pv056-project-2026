@@ -37,6 +37,7 @@ from src.visualization import (
     plot_umap_embeddings,
     plot_gradcam,
     plot_per_class_f1,
+    plot_cv_results,
 )
 
 
@@ -62,6 +63,15 @@ def main():
     print("Evaluation — Confusion Matrix, Grad-CAM, UMAP")
     print(f"Device: {config.device} | Backbone: {config.backbone}")
     print(f"Plots dir: {eval_plots_dir}")
+
+    # Refresh the CV summary plot from the saved training log (cheap, no retraining).
+    training_log_path = config.logs_dir / "training_log.json"
+    if training_log_path.exists():
+        with open(training_log_path) as f:
+            fold_results = json.load(f)
+        plot_cv_results(fold_results, config.plots_dir / "cv_results.png")
+    else:
+        print(f"Skipping CV plot regeneration — {training_log_path} not found")
 
     # Check for best HPO params
     hpo_params_path = config.tables_dir / "best_hpo_params.json"

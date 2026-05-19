@@ -191,10 +191,10 @@ def plot_training_curves(history: Dict, fold: int, save_path: Path):
 
 
 def plot_cv_results(fold_results: List[Dict], save_path: Path):
-    """Box plot of cross-validation F1 scores (R3b)."""
+    """Bar plot of cross-validation F1 scores (R3b)."""
     f1_scores = [r["best_f1"] for r in fold_results]
-    mean_f1 = np.mean(f1_scores)
-    std_f1 = np.std(f1_scores)
+    mean_f1 = float(np.mean(f1_scores))
+    std_f1 = float(np.std(f1_scores))
 
     fig, ax = plt.subplots(figsize=(8, 5))
 
@@ -202,14 +202,23 @@ def plot_cv_results(fold_results: List[Dict], save_path: Path):
            alpha=0.8, edgecolor="black")
     ax.axhline(y=mean_f1, color="red", linestyle="--", linewidth=2,
                label=f"Mean: {mean_f1:.4f} +/- {std_f1:.4f}")
-    ax.axhline(y=0.76, color="gray", linestyle=":", linewidth=2, label="Baseline: 0.76")
+
+    # Zoom y-axis tightly around the actual scores so per-fold differences are visible.
+    lo_data = min(f1_scores + [mean_f1])
+    hi_data = max(f1_scores + [mean_f1])
+    span = max(hi_data - lo_data, 1e-3)
+    lo = max(0.0, lo_data - max(span * 0.5, 0.002))
+    hi = min(1.0, hi_data + max(span * 0.5, 0.002))
+    ax.set_ylim(lo, hi)
+
+    for i, v in enumerate(f1_scores):
+        ax.text(i, v, f"{v:.4f}", ha="center", va="bottom", fontsize=9)
 
     ax.set_xticks(range(len(f1_scores)))
     ax.set_xticklabels([f"Fold {i}" for i in range(len(f1_scores))])
     ax.set_ylabel("F1 Macro")
-    ax.set_title("5-Fold Cross-Validation Results")
-    ax.legend()
-    ax.set_ylim(0, 1)
+    ax.set_title(f"5-Fold Cross-Validation Results (baseline 0.76, all folds >> baseline)")
+    ax.legend(loc="lower right")
     ax.grid(True, alpha=0.3, axis="y")
 
     plt.tight_layout()
